@@ -35,12 +35,11 @@ export async function completeOnboarding(
     const session =
       await auth.api.getSession({
         headers: new Headers({
-          cookie:
-            (
-              await cookies()
-            ).toString(),
+          cookie: (await cookies()).toString(),
         }),
       });
+
+    console.log("SESSION:", session);
 
     if (!session?.user) {
       return {
@@ -103,7 +102,7 @@ export async function completeOnboarding(
      -----------------------------------
     */
 
-    await db.pFOSBlueprint.upsert({
+    await db.PFOSBlueprint.upsert({
       where: {
         userId,
       },
@@ -130,7 +129,10 @@ export async function completeOnboarding(
       blueprint,
     };
   } catch (error) {
-    console.error(error);
+    console.error(
+      "ONBOARDING ERROR:",
+      error
+    );
 
     return {
       success: false,

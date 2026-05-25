@@ -24,7 +24,16 @@ export default function SignInPage() {
           password,
         });
 
-      console.log(result);
+      console.log(
+        "SIGNIN RESULT:",
+        result
+      );
+
+      if (result.error) {
+        alert(result.error.message);
+
+        return;
+      }
 
       alert("Signed in");
 

@@ -23,12 +23,21 @@ export default function SignUpPage() {
 
       const result =
         await authClient.signUp.email({
-          name,
           email,
           password,
+          name,
         });
 
-      console.log(result);
+      console.log(
+        "SIGNUP RESULT:",
+        result
+      );
+
+      if (result.error) {
+        alert(result.error.message);
+
+        return;
+      }
 
       alert("Account created");
 

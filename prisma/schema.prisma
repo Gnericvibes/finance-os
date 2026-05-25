@@ -75,25 +75,27 @@ model Profile {
 }
 
 model PFOSBlueprint {
-  id String @id @default(cuid())
+   id                    String   @id @default(cuid())
 
-  survivalAllocation   Float
-  debtAllocation       Float
-  emergencyAllocation  Float
-  investmentAllocation Float
-  lifestyleAllocation  Float
+  financialStage        FinancialStage
 
-  debtToIncomeRatio Float
-  savingsRate       Float
-  liquidityScore    Float
-  pressureScore     Float
-  stabilityScore    Float
+  survivalAllocation    Float
+  debtAllocation        Float
+  emergencyAllocation   Float
+  investmentAllocation  Float
+  lifestyleAllocation   Float
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  debtToIncomeRatio     Float
+  savingsRate           Float
+  liquidityScore        Float
+  pressureScore         Float
+  stabilityScore        Float
 
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  userId                String   @unique
+  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Entry {
