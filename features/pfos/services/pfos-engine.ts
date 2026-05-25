@@ -72,11 +72,19 @@ export class PFOSEngine {
 
     if (remaining <= 0) return 10;
 
-    if (remaining >= profile.monthlyIncome * 0.4)
+    if (
+      remaining >=
+      profile.monthlyIncome * 0.4
+    ) {
       return 90;
+    }
 
-    if (remaining >= profile.monthlyIncome * 0.2)
+    if (
+      remaining >=
+      profile.monthlyIncome * 0.2
+    ) {
       return 70;
+    }
 
     return 40;
   }
@@ -93,11 +101,13 @@ export class PFOSEngine {
       this.calculateTotalExpenses(profile);
 
     const expenseRatio =
-      (expenses / profile.monthlyIncome) * 100;
+      (expenses / profile.monthlyIncome) *
+      100;
 
     let score = 0;
 
     score += debtRatio * 0.5;
+
     score += expenseRatio * 0.5;
 
     return Math.min(
@@ -121,17 +131,12 @@ export class PFOSEngine {
     const savingsRate =
       this.calculateSavingsRate(profile);
 
-    if (pressure >= 80)
+    if (pressure >= 80) {
       return FinancialStage.SURVIVAL;
+    }
 
-    if (pressure >= 60)
+    if (pressure >= 60) {
       return FinancialStage.RECOVERY;
-
-    if (
-      savingsRate >= 20 &&
-      pressure < 50
-    ) {
-      return FinancialStage.GROWTH;
     }
 
     if (
@@ -139,6 +144,13 @@ export class PFOSEngine {
       pressure < 30
     ) {
       return FinancialStage.WEALTH_BUILDING;
+    }
+
+    if (
+      savingsRate >= 20 &&
+      pressure < 50
+    ) {
+      return FinancialStage.GROWTH;
     }
 
     return FinancialStage.STABLE;
@@ -245,10 +257,11 @@ export class PFOSEngine {
         financialStage
       );
 
-    const stabilityScore = Math.max(
-      100 - pressureScore,
-      0
-    );
+    const stabilityScore =
+      Math.max(
+        100 - pressureScore,
+        0
+      );
 
     return {
       financialStage,
@@ -262,5 +275,30 @@ export class PFOSEngine {
 
       ...allocations,
     };
+  }
+
+  /*
+   -----------------------------------
+   ENTRY DATABASE METHODS
+   -----------------------------------
+  */
+
+  static async createEntry(data: {
+    title: string;
+    description?: string;
+    amount: number;
+    category: string;
+    userId: string;
+  }) {
+    const { db } = await import(
+      "@/lib/db"
+    );
+
+    return db.entry.create({
+      data: {
+        ...data,
+        type: "EXPENSE",
+      },
+    });
   }
 }
