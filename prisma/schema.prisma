@@ -7,26 +7,130 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum EntryType {
+  EXPENSE
+  INCOME
+  INVESTMENT
+  DEBT_PAYMENT
+  TRANSFER
+}
 
-  entries   Entry[]
+enum FinancialStage {
+  SURVIVAL
+  RECOVERY
+  STABLE
+  GROWTH
+  WEALTH_BUILDING
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String?
+  name          String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  profile       Profile?
+  blueprint     PFOSBlueprint?
+
+  entries        Entry[]
+  chatMessages   ChatMessage[]
+  snapshots      Snapshot[]
+}
+
+model Profile {
+  id                    String   @id @default(cuid())
+
+  monthlyIncome         Float
+  employmentStatus      String
+
+  housingCost           Float
+  utilitiesCost         Float
+  transportationCost    Float
+  foodCost              Float
+
+  debtAmount            Float
+  debtMonthlyPayment    Float
+
+  emergencyFundGoal     Float
+  savingsGoal           Float
+
+  dependents            Int      @default(0)
+
+  financialStage        FinancialStage
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  userId                String   @unique
+  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PFOSBlueprint {
+  id                    String   @id @default(cuid())
+
+  survivalAllocation    Float
+  debtAllocation        Float
+  emergencyAllocation   Float
+  investmentAllocation  Float
+  lifestyleAllocation   Float
+
+  debtToIncomeRatio     Float
+  savingsRate           Float
+  liquidityScore        Float
+  pressureScore         Float
+  stabilityScore        Float
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  userId                String   @unique
+  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Entry {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  amount      Float
-  category    String
+  id              String   @id @default(cuid())
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  type            EntryType
 
-  userId      String
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+
+  amount          Float
+
+  category        String
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  isDeleted       Boolean @default(false)
+
+  userId          String
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatMessage {
+  id              String   @id @default(cuid())
+
+  role            String
+  content         String
+
+  createdAt       DateTime @default(now())
+
+  userId          String
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Snapshot {
+  id              String   @id @default(cuid())
+
+  title           String
+  description     String?
+
+  createdAt       DateTime @default(now())
+
+  userId          String
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
