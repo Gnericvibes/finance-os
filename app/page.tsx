@@ -1,9 +1,13 @@
+import { EntryForm } from "@/features/pfos/components/entry-form";
+
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center">
-      <h1 className="text-4xl font-bold">
-        Finance OS AI
+    <main className="p-10">
+      <h1 className="text-3xl font-bold mb-6">
+        PFOS Dashboard
       </h1>
+
+      <EntryForm />
     </main>
   );
 }

@@ -2,20 +2,24 @@
 
 import { PFOSEngine } from "../services/pfos-engine";
 
-type CreateEntryInput = {
-  title: string;
-  description?: string;
-  amount: number;
-  category: string;
-  userId: string;
-};
+import {
+  createEntrySchema,
+  CreateEntryInput,
+} from "../validators/entry-validator";
 
 export async function createEntryAction(
   data: CreateEntryInput
 ) {
   try {
+    // Validate incoming data
+    const validatedData =
+      createEntrySchema.parse(data);
+
+    // Create database entry
     const entry =
-      await PFOSEngine.createEntry(data);
+      await PFOSEngine.createEntry(
+        validatedData
+      );
 
     return {
       success: true,
@@ -26,7 +30,7 @@ export async function createEntryAction(
 
     return {
       success: false,
-      error: "Failed to create entry",
+      error: "Invalid entry data",
     };
   }
 }
