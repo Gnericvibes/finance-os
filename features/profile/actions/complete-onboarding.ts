@@ -1,6 +1,10 @@
 "use server";
 
+import { cookies } from "next/headers";
+
 import { db } from "@/lib/db";
+
+import { auth } from "@/lib/auth";
 
 import { PFOSEngine } from "@/features/pfos/services/pfos-engine";
 
@@ -24,11 +28,28 @@ export async function completeOnboarding(
 
     /*
      -----------------------------------
-     TEMP DEMO USER
+     GET SESSION
      -----------------------------------
     */
 
-    const userId = "demo-user";
+    const session =
+      await auth.api.getSession({
+        headers: new Headers({
+          cookie:
+            (
+              await cookies()
+            ).toString(),
+        }),
+      });
+
+    if (!session?.user) {
+      return {
+        success: false,
+        error: "Unauthorized",
+      };
+    }
+
+    const userId = session.user.id;
 
     /*
      -----------------------------------
@@ -43,13 +64,22 @@ export async function completeOnboarding(
 
     /*
      -----------------------------------
-     CREATE PROFILE
+     UPSERT PROFILE
      -----------------------------------
     */
 
     const profile =
-      await db.profile.create({
-        data: {
+      await db.profile.upsert({
+        where: {
+          userId,
+        },
+
+        update: {
+          ...validated,
+          financialStage,
+        },
+
+        create: {
           ...validated,
           financialStage,
           userId,
@@ -69,12 +99,20 @@ export async function completeOnboarding(
 
     /*
      -----------------------------------
-     SAVE BLUEPRINT
+     UPSERT BLUEPRINT
      -----------------------------------
     */
 
-    await db.pFOSBlueprint.create({
-      data: {
+    await db.pFOSBlueprint.upsert({
+      where: {
+        userId,
+      },
+
+      update: {
+        ...blueprint,
+      },
+
+      create: {
         ...blueprint,
         userId,
       },
@@ -82,7 +120,7 @@ export async function completeOnboarding(
 
     /*
      -----------------------------------
-     SUCCESS RESPONSE
+     SUCCESS
      -----------------------------------
     */
 

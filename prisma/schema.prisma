@@ -24,24 +24,26 @@ enum FinancialStage {
 }
 
 model User {
-  id String @id @default(cuid())
+  id            String   @id @default(cuid())
 
-  email    String  @unique
-  password String?
-  name     String?
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  image         String?
 
-  profile   Profile?
-  blueprint PFOSBlueprint?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  entries      Entry[]
-  chatMessages ChatMessage[]
-  snapshots    Snapshot[]
+  profile       Profile?
+  blueprint     PFOSBlueprint?
 
-  sessions Session[]
-  accounts Account[]
+  entries       Entry[]
+  chatMessages  ChatMessage[]
+  snapshots     Snapshot[]
+
+  sessions      Session[]
+  accounts      Account[]
 }
 
 model Profile {
@@ -140,54 +142,42 @@ model Snapshot {
 }
 
 model Session {
-  id String @id
+  id           String   @id
 
-  expiresAt DateTime
+  expiresAt    DateTime
 
-  token String @unique
+  token        String   @unique
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  ipAddress String?
-  userAgent String?
+  ipAddress    String?
+  userAgent    String?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
-  id String @id
+  id                    String   @id
 
-  accountId  String
-  providerId String
+  accountId             String
+  providerId            String
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  accessToken  String?
-  refreshToken String?
+  accessToken           String?
+  refreshToken          String?
 
-  idToken String?
+  idToken               String?
 
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
 
-  scope    String?
-  password String?
+  scope                 String?
+  password              String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Verification {
-  id String @id
-
-  identifier String
-  value      String
-
-  expiresAt DateTime
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
