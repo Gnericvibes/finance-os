@@ -102,7 +102,7 @@ export async function completeOnboarding(
      -----------------------------------
     */
 
-    await db.PFOSBlueprint.upsert({
+    await db.pFOSBlueprint.upsert({
       where: {
         userId,
       },
