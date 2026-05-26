@@ -2,36 +2,49 @@
 
 import { useState } from "react";
 
-type Message = {
+import { sendMessage } from "@/features/chat/actions/send-message";
+
+interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: string;
   content: string;
-};
+  createdAt: Date;
+  conversationId: string;
+}
 
-export function ChatInterface() {
-  const [message, setMessage] =
-    useState("");
+interface ChatInterfaceProps {
+  messages: Message[];
+  conversationId: string;
+}
 
+export function ChatInterface({
+  messages: initialMessages,
+  conversationId,
+}: ChatInterfaceProps) {
   const [messages, setMessages] =
-    useState<Message[]>([
-      {
-        id: "1",
-        role: "assistant",
-        content:
-          "Welcome to Finance OS. Tell me about your finances.",
-      },
-    ]);
+    useState(initialMessages);
+
+  const [input, setInput] =
+    useState("");
 
   const [loading, setLoading] =
     useState(false);
 
   async function handleSend() {
-    if (!message.trim()) return;
+    if (!input.trim()) return;
 
-    const userMessage: Message = {
+    setLoading(true);
+
+    const userMessage = {
       id: crypto.randomUUID(),
+
       role: "user",
-      content: message,
+
+      content: input,
+
+      createdAt: new Date(),
+
+      conversationId,
     };
 
     setMessages((prev) => [
@@ -39,104 +52,96 @@ export function ChatInterface() {
       userMessage,
     ]);
 
-    setMessage("");
+    const currentInput = input;
 
-    setLoading(true);
+    setInput("");
 
-    /*
-     -----------------------------------
-     TEMP AI RESPONSE
-     -----------------------------------
-    */
+    try {
+      await sendMessage(
+        conversationId,
+        currentInput
+      );
 
-    setTimeout(() => {
-      const aiMessage: Message = {
+      const assistantMessage = {
         id: crypto.randomUUID(),
+
         role: "assistant",
+
         content:
-          "I analyzed your financial input. AI engine integration comes next.",
+          "Message received. AI orchestration layer will be connected next.",
+
+        createdAt: new Date(),
+
+        conversationId,
       };
 
       setMessages((prev) => [
         ...prev,
-        aiMessage,
+        assistantMessage,
       ]);
+    } catch (error) {
+      console.error(error);
+    }
 
-      setLoading(false);
-    }, 1000);
+    setLoading(false);
   }
 
   return (
-    <div className="border border-zinc-800 bg-zinc-950 rounded-3xl h-[700px] flex flex-col overflow-hidden">
-      {/* HEADER */}
-
-      <div className="border-b border-zinc-800 p-6">
-        <h2 className="text-2xl font-bold text-white">
-          Finance AI
-        </h2>
-
-        <p className="text-zinc-400 text-sm mt-1">
-          Your autonomous financial operating
-          system
-        </p>
-      </div>
-
+    <div className="h-full flex flex-col">
       {/* MESSAGES */}
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${
-              msg.role === "user"
-                ? "justify-end"
-                : "justify-start"
-            }`}
-          >
+        {messages.length === 0 ? (
+          <div className="text-center text-zinc-500 pt-20">
+            Start a conversation with Finance AI
+          </div>
+        ) : (
+          messages.map((message) => (
             <div
-              className={`max-w-[80%] rounded-2xl px-5 py-4 ${
-                msg.role === "user"
-                  ? "bg-white text-black"
-                  : "bg-zinc-900 text-white border border-zinc-800"
+              key={message.id}
+              className={`max-w-3xl rounded-2xl p-4 ${
+                message.role ===
+                "assistant"
+                  ? "bg-zinc-900 border border-zinc-800"
+                  : "bg-white text-black ml-auto"
               }`}
             >
-              <p className="leading-relaxed">
-                {msg.content}
+              <p className="text-sm mb-2 opacity-70">
+                {message.role ===
+                "assistant"
+                  ? "Finance AI"
+                  : "You"}
               </p>
-            </div>
-          </div>
-        ))}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-4">
-              <p className="text-zinc-400">
-                Thinking...
+              <p className="leading-relaxed">
+                {message.content}
               </p>
             </div>
-          </div>
+          ))
         )}
       </div>
 
       {/* INPUT */}
 
-      <div className="border-t border-zinc-800 p-4">
-        <div className="flex gap-3">
+      <div className="border-t border-zinc-900 p-6">
+        <div className="flex gap-4">
           <input
-            value={message}
+            value={input}
             onChange={(e) =>
-              setMessage(e.target.value)
+              setInput(e.target.value)
             }
-            placeholder="Tell Finance OS about your finances..."
-            className="flex-1 bg-black border border-zinc-800 rounded-2xl px-5 py-4 text-white outline-none focus:border-white transition"
+            placeholder="Type your financial update..."
+            className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-4 outline-none focus:border-white"
           />
 
           <button
             onClick={handleSend}
             disabled={loading}
-            className="bg-white text-black px-6 rounded-2xl font-semibold hover:opacity-90 transition disabled:opacity-50"
+            className="bg-white text-black px-6 rounded-xl font-semibold hover:opacity-90 transition disabled:opacity-50"
           >
-            Send
+            {loading
+              ? "Sending..."
+              : "Send"}
           </button>
         </div>
       </div>
