@@ -1,12 +1,27 @@
 interface BudgetCategoryData {
   category: string;
+
   limitAmount: number;
 }
 
 interface EntryData {
   category: string;
+
   amount: number;
+
   type: string;
+}
+
+interface PFOSData {
+  survivalAllocation: number;
+
+  debtAllocation: number;
+
+  emergencyAllocation: number;
+
+  investmentAllocation: number;
+
+  lifestyleAllocation: number;
 }
 
 export class BudgetEngine {
@@ -19,16 +34,19 @@ export class BudgetEngine {
   static getCategorySpending(
     entries: EntryData[],
     category: string
-  ) {
+  ): number {
     return entries
       .filter(
         (entry) =>
           entry.type === "EXPENSE" &&
-          entry.category === category
+          entry.category.toLowerCase() ===
+            category.toLowerCase()
       )
       .reduce(
-        (total, entry) =>
-          total + entry.amount,
+        (
+          total,
+          entry
+        ) => total + entry.amount,
         0
       );
   }
@@ -64,9 +82,184 @@ export class BudgetEngine {
 
     return {
       spent,
+
       remaining,
+
       percentage,
+
       status,
+    };
+  }
+
+  /*
+   -----------------------------------
+   CATEGORY RISK SCORE
+   -----------------------------------
+  */
+
+  static getRiskLevel(
+    percentage: number
+  ) {
+    if (percentage >= 120) {
+      return "CRITICAL";
+    }
+
+    if (percentage >= 100) {
+      return "HIGH";
+    }
+
+    if (percentage >= 80) {
+      return "MEDIUM";
+    }
+
+    return "LOW";
+  }
+
+  /*
+   -----------------------------------
+   BUDGET ALERTS
+   -----------------------------------
+  */
+
+  static generateAlerts(
+    category: string,
+    percentage: number,
+    remaining: number
+  ): string[] {
+    const alerts: string[] = [];
+
+    if (percentage >= 120) {
+      alerts.push(
+        `${category} spending is critically above budget.`
+      );
+    }
+
+    else if (percentage >= 100) {
+      alerts.push(
+        `${category} budget exceeded.`
+      );
+    }
+
+    else if (percentage >= 80) {
+      alerts.push(
+        `${category} budget approaching limit.`
+      );
+    }
+
+    if (remaining < 0) {
+      alerts.push(
+        `Overspent by ₦${Math.abs(
+          remaining
+        ).toLocaleString()}`
+      );
+    }
+
+    return alerts;
+  }
+
+  /*
+   -----------------------------------
+   PFOS CATEGORY MAPPING
+   -----------------------------------
+  */
+
+  static getPFOSBucket(
+    category: string
+  ) {
+    const lower =
+      category.toLowerCase();
+
+    if (
+      [
+        "food",
+        "transport",
+        "rent",
+        "utilities",
+        "health",
+      ].includes(lower)
+    ) {
+      return "SURVIVAL";
+    }
+
+    if (
+      [
+        "debt",
+        "loan",
+      ].includes(lower)
+    ) {
+      return "DEBT";
+    }
+
+    if (
+      [
+        "savings",
+        "emergency",
+      ].includes(lower)
+    ) {
+      return "EMERGENCY";
+    }
+
+    if (
+      [
+        "investment",
+        "stocks",
+        "crypto",
+      ].includes(lower)
+    ) {
+      return "INVESTMENT";
+    }
+
+    return "LIFESTYLE";
+  }
+
+  /*
+   -----------------------------------
+   PFOS ALLOCATION CHECK
+   -----------------------------------
+  */
+
+  static compareWithPFOS(
+    percentage: number,
+    bucket: string,
+    blueprint: PFOSData
+  ) {
+    let allocation = 0;
+
+    switch (bucket) {
+      case "SURVIVAL":
+        allocation =
+          blueprint.survivalAllocation;
+        break;
+
+      case "DEBT":
+        allocation =
+          blueprint.debtAllocation;
+        break;
+
+      case "EMERGENCY":
+        allocation =
+          blueprint.emergencyAllocation;
+        break;
+
+      case "INVESTMENT":
+        allocation =
+          blueprint.investmentAllocation;
+        break;
+
+      case "LIFESTYLE":
+        allocation =
+          blueprint.lifestyleAllocation;
+        break;
+    }
+
+    return {
+      bucket,
+
+      recommendedAllocation:
+        allocation,
+
+      exceedsPFOS:
+        percentage > allocation,
     };
   }
 
@@ -78,7 +271,8 @@ export class BudgetEngine {
 
   static analyzeBudget(
     categories: BudgetCategoryData[],
-    entries: EntryData[]
+    entries: EntryData[],
+    blueprint?: PFOSData
   ) {
     return categories.map(
       (category) => {
@@ -94,6 +288,32 @@ export class BudgetEngine {
             spent
           );
 
+        const riskLevel =
+          this.getRiskLevel(
+            analysis.percentage
+          );
+
+        const alerts =
+          this.generateAlerts(
+            category.category,
+            analysis.percentage,
+            analysis.remaining
+          );
+
+        const bucket =
+          this.getPFOSBucket(
+            category.category
+          );
+
+        const pfos =
+          blueprint
+            ? this.compareWithPFOS(
+                analysis.percentage,
+                bucket,
+                blueprint
+              )
+            : null;
+
         return {
           category:
             category.category,
@@ -101,7 +321,23 @@ export class BudgetEngine {
           limit:
             category.limitAmount,
 
-          ...analysis,
+          spent:
+            analysis.spent,
+
+          remaining:
+            analysis.remaining,
+
+          percentage:
+            analysis.percentage,
+
+          status:
+            analysis.status,
+
+          riskLevel,
+
+          alerts,
+
+          pfos,
         };
       }
     );

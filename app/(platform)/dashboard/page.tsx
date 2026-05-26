@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 
+import { headers } from "next/headers";
+
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-
-import { headers } from "next/headers";
 
 import { EntryForm } from "@/features/entries/components/entry-form";
 
@@ -18,9 +18,10 @@ export default async function DashboardPage() {
    -----------------------------------
   */
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session =
+    await auth.api.getSession({
+      headers: await headers(),
+    });
 
   /*
    -----------------------------------
@@ -38,17 +39,18 @@ export default async function DashboardPage() {
    -----------------------------------
   */
 
-  const entries = await db.entry.findMany({
-    where: {
-      userId: session.user.id,
-    },
+  const entries =
+    await db.entry.findMany({
+      where: {
+        userId: session.user.id,
+      },
 
-    orderBy: {
-      createdAt: "desc",
-    },
+      orderBy: {
+        createdAt: "desc",
+      },
 
-    take: 10,
-  });
+      take: 10,
+    });
 
   /*
    -----------------------------------
@@ -145,27 +147,43 @@ export default async function DashboardPage() {
 
           <p className="text-zinc-400 text-lg">
             Welcome back{" "}
-            {session.user.name || "User"}
+            {session.user.name ||
+              "User"}
           </p>
         </div>
 
         {/* LIVE ANALYTICS */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <AnalyticsCard
-            title="Income"
-            value={`₦${income.toLocaleString()}`}
-          />
+          <a
+            href="/analytics/income"
+            className="block"
+          >
+            <AnalyticsCard
+              title="Income"
+              value={`₦${income.toLocaleString()}`}
+            />
+          </a>
 
-          <AnalyticsCard
-            title="Expenses"
-            value={`₦${expenses.toLocaleString()}`}
-          />
+          <a
+            href="/analytics/expenses"
+            className="block"
+          >
+            <AnalyticsCard
+              title="Expenses"
+              value={`₦${expenses.toLocaleString()}`}
+            />
+          </a>
 
-          <AnalyticsCard
-            title="Investments"
-            value={`₦${investments.toLocaleString()}`}
-          />
+          <a
+            href="/analytics/investments"
+            className="block"
+          >
+            <AnalyticsCard
+              title="Investments"
+              value={`₦${investments.toLocaleString()}`}
+            />
+          </a>
 
           <AnalyticsCard
             title="Cash Flow"
@@ -173,7 +191,7 @@ export default async function DashboardPage() {
           />
 
           <AnalyticsCard
-            title="Savings Rate"
+            title="Live Savings Rate"
             value={`${savingsRate}%`}
           />
         </div>
@@ -213,7 +231,9 @@ export default async function DashboardPage() {
 
                   return (
                     <div
-                      key={item.category}
+                      key={
+                        item.category
+                      }
                       className="space-y-2"
                     >
                       <div className="flex items-center justify-between">
@@ -283,41 +303,48 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-4">
-            {entries.length === 0 ? (
+            {entries.length ===
+            0 ? (
               <p className="text-zinc-500">
                 No entries yet.
               </p>
             ) : (
-              entries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between border border-zinc-800 rounded-2xl p-4 bg-black/40"
-                >
-                  <div className="space-y-1">
-                    <p className="font-semibold text-white">
-                      {entry.title}
-                    </p>
+              entries.map(
+                (entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center justify-between border border-zinc-800 rounded-2xl p-4 bg-black/40"
+                  >
+                    <div className="space-y-1">
+                      <p className="font-semibold text-white">
+                        {
+                          entry.title
+                        }
+                      </p>
 
-                    <p className="text-sm text-zinc-400">
-                      {entry.category}
-                    </p>
+                      <p className="text-sm text-zinc-400">
+                        {
+                          entry.category
+                        }
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-white">
+                        ₦
+                        {entry.amount.toLocaleString()}
+                      </p>
+
+                      <p className="text-xs text-zinc-500">
+                        {entry.type.replaceAll(
+                          "_",
+                          " "
+                        )}
+                      </p>
+                    </div>
                   </div>
-
-                  <div className="text-right">
-                    <p className="font-bold text-lg text-white">
-                      ₦
-                      {entry.amount.toLocaleString()}
-                    </p>
-
-                    <p className="text-xs text-zinc-500">
-                      {entry.type.replaceAll(
-                        "_",
-                        " "
-                      )}
-                    </p>
-                  </div>
-                </div>
-              ))
+                )
+              )
             )}
           </div>
         </div>
@@ -340,7 +367,7 @@ function AnalyticsCard({
   value: string;
 }) {
   return (
-    <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
+    <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6 hover:border-zinc-600 transition-all">
       <p className="text-sm text-zinc-400">
         {title}
       </p>

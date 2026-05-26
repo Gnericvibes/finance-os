@@ -10,6 +10,25 @@ export type ParsedEntry = {
   category: string;
 };
 
+export type ProfileUpdate = {
+  dependents?: number;
+
+  maritalStatus?: string;
+};
+
+export type ParsedResult = {
+  entries: ParsedEntry[];
+
+  profileUpdates: ProfileUpdate | null;
+
+  detectedIntent:
+    | "ENTRY"
+    | "PROFILE_UPDATE"
+    | "UNKNOWN";
+
+  aiResponse: string;
+};
+
 export class ParserEngine {
   /*
    -----------------------------------
@@ -19,9 +38,64 @@ export class ParserEngine {
 
   static parse(
     message: string
-  ): ParsedEntry[] {
+  ): ParsedResult {
     const lower =
       message.toLowerCase();
+
+    /*
+     -----------------------------------
+     PROFILE UPDATE DETECTION
+     -----------------------------------
+    */
+
+    const profileUpdates: ProfileUpdate =
+      {};
+
+    let detectedIntent:
+      | "ENTRY"
+      | "PROFILE_UPDATE"
+      | "UNKNOWN" =
+      "UNKNOWN";
+
+    /*
+     -----------------------------------
+     DEPENDENTS
+     -----------------------------------
+    */
+
+    const dependentMatch =
+      lower.match(
+        /(\d+)\s+dependent/
+      );
+
+    if (dependentMatch) {
+      profileUpdates.dependents =
+        Number(
+          dependentMatch[1]
+        );
+
+      detectedIntent =
+        "PROFILE_UPDATE";
+    }
+
+    /*
+     -----------------------------------
+     MARRIAGE DETECTION
+     -----------------------------------
+    */
+
+    if (
+      lower.includes(
+        "got married"
+      ) ||
+      lower.includes("married")
+    ) {
+      profileUpdates.maritalStatus =
+        "MARRIED";
+
+      detectedIntent =
+        "PROFILE_UPDATE";
+    }
 
     /*
      -----------------------------------
@@ -32,15 +106,9 @@ export class ParserEngine {
     const amountMatches =
       [...lower.matchAll(/\d+/g)];
 
-    if (
-      amountMatches.length === 0
-    ) {
-      return [];
-    }
-
     /*
      -----------------------------------
-     CATEGORY DETECTION
+     CATEGORY LIST
      -----------------------------------
     */
 
@@ -55,67 +123,259 @@ export class ParserEngine {
       "airtime",
       "entertainment",
       "health",
+      "groceries",
+      "fuel",
+      "internet",
+      "subscription",
+      "debt",
+      "loan",
+      "crypto",
+      "stocks",
     ];
 
-    const detectedCategory =
-      categories.find((category) =>
-        lower.includes(category)
-      ) || "general";
-
     /*
      -----------------------------------
-     ENTRY TYPE
-     -----------------------------------
-    */
-
-    let type: EntryType =
-      EntryType.EXPENSE;
-
-    if (
-      lower.includes("salary") ||
-      lower.includes("income") ||
-      lower.includes("received")
-    ) {
-      type = EntryType.INCOME;
-    }
-
-    if (
-      lower.includes(
-        "investment"
-      )
-    ) {
-      type =
-        EntryType.INVESTMENT;
-    }
-
-    /*
-     -----------------------------------
-     BUILD ENTRIES
+     MULTI CATEGORY PARSING
      -----------------------------------
     */
 
     const entries: ParsedEntry[] =
-      amountMatches.map(
-        (
-          match
-        ): ParsedEntry => ({
-          type,
+      [];
 
-          title:
-            detectedCategory
-              .charAt(0)
-              .toUpperCase() +
-            detectedCategory.slice(
-              1
-            ),
+    categories.forEach(
+      (category) => {
+        const regex =
+          new RegExp(
+            `(\\d+)\\s*${category}`,
+            "gi"
+          );
 
-          amount: Number(match[0]),
+        const matches = [
+          ...lower.matchAll(
+            regex
+          ),
+        ];
 
-          category:
-            detectedCategory,
-        })
-      );
+        matches.forEach(
+          (match) => {
+            let type: EntryType =
+              EntryType.EXPENSE;
 
-    return entries;
+            /*
+             -----------------------------------
+             TYPE DETECTION
+             -----------------------------------
+            */
+
+            if (
+              category ===
+                "salary" ||
+              lower.includes(
+                "income"
+              ) ||
+              lower.includes(
+                "received"
+              )
+            ) {
+              type =
+                EntryType.INCOME;
+            }
+
+            if (
+              [
+                "investment",
+                "crypto",
+                "stocks",
+              ].includes(
+                category
+              )
+            ) {
+              type =
+                EntryType.INVESTMENT;
+            }
+
+            if (
+              [
+                "debt",
+                "loan",
+              ].includes(
+                category
+              )
+            ) {
+              type =
+                EntryType.DEBT_PAYMENT;
+            }
+
+            entries.push({
+              type,
+
+              title:
+                category
+                  .charAt(0)
+                  .toUpperCase() +
+                category.slice(
+                  1
+                ),
+
+              amount: Number(
+                match[1]
+              ),
+
+              category,
+            });
+          }
+        );
+      }
+    );
+
+    /*
+     -----------------------------------
+     FALLBACK PARSING
+     -----------------------------------
+    */
+
+    if (
+      entries.length === 0 &&
+      amountMatches.length > 0
+    ) {
+      const detectedCategory =
+        categories.find(
+          (category) =>
+            lower.includes(
+              category
+            )
+        ) || "general";
+
+      let type: EntryType =
+        EntryType.EXPENSE;
+
+      if (
+        lower.includes(
+          "salary"
+        ) ||
+        lower.includes(
+          "income"
+        ) ||
+        lower.includes(
+          "received"
+        )
+      ) {
+        type =
+          EntryType.INCOME;
+      }
+
+      if (
+        lower.includes(
+          "investment"
+        )
+      ) {
+        type =
+          EntryType.INVESTMENT;
+      }
+
+      entries.push({
+        type,
+
+        title:
+          detectedCategory
+            .charAt(0)
+            .toUpperCase() +
+          detectedCategory.slice(
+            1
+          ),
+
+        amount: Number(
+          amountMatches[0][0]
+        ),
+
+        category:
+          detectedCategory,
+      });
+    }
+
+    /*
+     -----------------------------------
+     ENTRY INTENT
+     -----------------------------------
+    */
+
+    if (
+      entries.length > 0
+    ) {
+      detectedIntent =
+        "ENTRY";
+    }
+
+    /*
+     -----------------------------------
+     AI RESPONSE GENERATION
+     -----------------------------------
+    */
+
+    let aiResponse =
+      "I could not fully understand your financial update.";
+
+    /*
+     -----------------------------------
+     ENTRY RESPONSE
+     -----------------------------------
+    */
+
+    if (
+      detectedIntent ===
+      "ENTRY"
+    ) {
+      const total =
+        entries.reduce(
+          (
+            acc,
+            entry
+          ) =>
+            acc +
+            entry.amount,
+          0
+        );
+
+      aiResponse = `Processed ${entries.length} financial entr${
+        entries.length > 1
+          ? "ies"
+          : "y"
+      } totaling ₦${total.toLocaleString()}.`;
+    }
+
+    /*
+     -----------------------------------
+     PROFILE RESPONSE
+     -----------------------------------
+    */
+
+    if (
+      detectedIntent ===
+      "PROFILE_UPDATE"
+    ) {
+      aiResponse =
+        "Profile update detected. Your PFOS blueprint will be recalculated.";
+    }
+
+    /*
+     -----------------------------------
+     RETURN
+     -----------------------------------
+    */
+
+    return {
+      entries,
+
+      profileUpdates:
+        Object.keys(
+          profileUpdates
+        ).length > 0
+          ? profileUpdates
+          : null,
+
+      detectedIntent,
+
+      aiResponse,
+    };
   }
 }
