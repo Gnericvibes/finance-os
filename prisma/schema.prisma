@@ -39,8 +39,9 @@ model User {
   blueprint     PFOSBlueprint?
 
   entries       Entry[]
-  chatMessages  ChatMessage[]
   snapshots     Snapshot[]
+
+  conversations Conversation[]
 
   sessions      Session[]
   accounts      Account[]
@@ -75,27 +76,27 @@ model Profile {
 }
 
 model PFOSBlueprint {
-   id                    String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  financialStage        FinancialStage
+  financialStage FinancialStage
 
-  survivalAllocation    Float
-  debtAllocation        Float
-  emergencyAllocation   Float
-  investmentAllocation  Float
-  lifestyleAllocation   Float
+  survivalAllocation   Float
+  debtAllocation       Float
+  emergencyAllocation  Float
+  investmentAllocation Float
+  lifestyleAllocation  Float
 
-  debtToIncomeRatio     Float
-  savingsRate           Float
-  liquidityScore        Float
-  pressureScore         Float
-  stabilityScore        Float
+  debtToIncomeRatio Float
+  savingsRate       Float
+  liquidityScore    Float
+  pressureScore     Float
+  stabilityScore    Float
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  userId                String   @unique
-  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Entry {
@@ -119,6 +120,20 @@ model Entry {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Conversation {
+  id String @id @default(cuid())
+
+  title String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages ChatMessage[]
+}
+
 model ChatMessage {
   id String @id @default(cuid())
 
@@ -127,8 +142,8 @@ model ChatMessage {
 
   createdAt DateTime @default(now())
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 model Snapshot {
@@ -144,42 +159,42 @@ model Snapshot {
 }
 
 model Session {
-  id           String   @id
+  id String @id
 
-  expiresAt    DateTime
+  expiresAt DateTime
 
-  token        String   @unique
+  token String @unique
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  ipAddress    String?
-  userAgent    String?
+  ipAddress String?
+  userAgent String?
 
-  userId       String
-  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
-  id                    String   @id
+  id String @id
 
-  accountId             String
-  providerId            String
+  accountId  String
+  providerId String
 
-  userId                String
-  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  accessToken           String?
-  refreshToken          String?
+  accessToken  String?
+  refreshToken String?
 
-  idToken               String?
+  idToken String?
 
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
 
-  scope                 String?
-  password              String?
+  scope    String?
+  password String?
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
