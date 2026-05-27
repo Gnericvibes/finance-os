@@ -2,39 +2,50 @@ import { redirect } from "next/navigation";
 
 import { headers } from "next/headers";
 
+import Link from "next/link";
+
 import { auth } from "@/lib/auth";
+
 import { db } from "@/lib/db";
 
-import { AnalyticsEngine } from "@/features/analytics/services/analytics-engine";
+import { EntryType } from "@prisma/client";
 
-import { AnalyticsChart } from "@/features/analytics/components/analytics-chart";
+import { AnalyticsClient } from "@/features/analytics/components/analytics-client";
 
-import { TransactionsTable } from "@/features/analytics/components/transactions-table";
+import { ExportButton } from "@/features/analytics/components/export-button";
 
-import { AIInsightCard } from "@/features/analytics/components/ai-insight-card";
+import { DateRangeFilter } from "@/features/analytics/components/date-range-filter";
+
+import { ComparisonCards } from "@/features/analytics/components/comparison-cards";
+
+import { DateRangeEngine } from "@/features/analytics/services/date-range-engine";
+
+import { ComparativeEngine } from "@/features/analytics/services/comparative-engine";
+
+import { IntelligenceEngine } from "@/features/intelligence/services/intelligence-engine";
+
+import { AIInsights } from "@/features/intelligence/components/ai-insights";
+
+import { PredictiveEngine } from "@/features/intelligence/services/predictive-engine";
+
+import { PredictiveDashboard } from "@/features/intelligence/components/predictive-dashboard";
 
 interface AnalyticsPageProps {
   params: Promise<{
     type: string;
   }>;
+
+  searchParams: Promise<{
+    from?: string;
+
+    to?: string;
+  }>;
 }
 
 export default async function AnalyticsPage({
   params,
+  searchParams,
 }: AnalyticsPageProps) {
-  /*
-   -----------------------------------
-   PARAMS
-   -----------------------------------
-  */
-
-  const resolvedParams =
-    await params;
-
-  const type =
-    resolvedParams.type
-      .toUpperCase();
-
   /*
    -----------------------------------
    SESSION
@@ -52,71 +63,405 @@ export default async function AnalyticsPage({
 
   /*
    -----------------------------------
-   FETCH ENTRIES
+   PARAMS
+   -----------------------------------
+  */
+
+  const { type } =
+    await params;
+
+  const {
+    from,
+    to,
+  } = await searchParams;
+
+  /*
+   -----------------------------------
+   DATE RANGE
+   -----------------------------------
+  */
+
+  const dateRange =
+    DateRangeEngine.parseCustomRange(
+      from,
+      to
+    );
+
+  /*
+   -----------------------------------
+   PREVIOUS RANGE
+   -----------------------------------
+  */
+
+  const diff =
+    dateRange.end.getTime() -
+    dateRange.start.getTime();
+
+  const previousStart =
+    new Date(
+      dateRange.start.getTime() -
+        diff
+    );
+
+  const previousEnd =
+    new Date(
+      dateRange.end.getTime() -
+        diff
+    );
+
+  /*
+   -----------------------------------
+   TYPE MAP
+   -----------------------------------
+  */
+
+  const typeMap: Record<
+    string,
+    EntryType
+  > = {
+    income:
+      EntryType.INCOME,
+
+    expenses:
+      EntryType.EXPENSE,
+
+    investments:
+      EntryType.INVESTMENT,
+
+    "debt-payment":
+      EntryType.DEBT_PAYMENT,
+
+    transfer:
+      EntryType.TRANSFER,
+  };
+
+  const entryType =
+    typeMap[type];
+
+  if (!entryType) {
+    redirect("/dashboard");
+  }
+
+  /*
+   -----------------------------------
+   DESCRIPTION MAP
+   -----------------------------------
+  */
+
+  const descriptionMap: Record<
+    string,
+    string
+  > = {
+    income:
+      "Income performance and earnings intelligence",
+
+    expenses:
+      "Spending trends and category intelligence",
+
+    investments:
+      "Investment growth and capital allocation insights",
+
+    "debt-payment":
+      "Debt reduction and repayment tracking",
+
+    transfer:
+      "Cash movement and transfer monitoring",
+  };
+
+  /*
+   -----------------------------------
+   FETCH CURRENT ENTRIES
    -----------------------------------
   */
 
   const entries =
     await db.entry.findMany({
       where: {
-        userId: session.user.id,
+        userId:
+          session.user.id,
 
-        type: type as any,
+        type: entryType,
+
+        createdAt: {
+          gte:
+            dateRange.start,
+
+          lte:
+            dateRange.end,
+        },
       },
 
       orderBy: {
-        createdAt: "desc",
+        createdAt:
+          "desc",
       },
     });
 
   /*
    -----------------------------------
-   ANALYTICS
+   FETCH PREVIOUS ENTRIES
    -----------------------------------
   */
 
-  const total =
-    AnalyticsEngine.getTotal(
+  const previousEntries =
+    await db.entry.findMany({
+      where: {
+        userId:
+          session.user.id,
+
+        type: entryType,
+
+        createdAt: {
+          gte:
+            previousStart,
+
+          lte:
+            previousEnd,
+        },
+      },
+    });
+
+  /*
+   -----------------------------------
+   COMPARATIVE ANALYTICS
+   -----------------------------------
+  */
+
+  const currentTotal =
+    ComparativeEngine.getCurrentTotal(
       entries
     );
 
-  const average =
-    AnalyticsEngine.getAverageTransaction(
-      entries
+  const previousTotal =
+    ComparativeEngine.getPreviousTotal(
+      previousEntries
     );
 
-  const largest =
-    AnalyticsEngine.getLargestTransactions(
-      entries
-    );
-
-  const categoryBreakdown =
-    AnalyticsEngine.getCategoryBreakdown(
-      entries
+  const percentageChange =
+    ComparativeEngine.getPercentageChange(
+      currentTotal,
+      previousTotal
     );
 
   const trend =
-    AnalyticsEngine.getMonthlyTrend(
-      entries
+    ComparativeEngine.getTrend(
+      percentageChange
     );
 
   /*
    -----------------------------------
-   AI INSIGHT
+   AI INSIGHTS
    -----------------------------------
   */
 
-  let insight =
-    "Financial activity appears stable.";
+  const insights =
+    IntelligenceEngine.generateInsights(
+      {
+        entries,
 
-  if (total > 500000) {
-    insight =
-      "High transaction volume detected. Monitor allocation efficiency and maintain liquidity discipline.";
+        currentTotal,
+
+        previousTotal,
+      }
+    );
+
+  /*
+   -----------------------------------
+   PREDICTIVE INTELLIGENCE
+   -----------------------------------
+  */
+
+  const projectedSpending =
+    PredictiveEngine.projectMonthlySpending(
+      entries
+    );
+
+  const forecastSavings =
+    PredictiveEngine.forecastSavings(
+      currentTotal,
+      projectedSpending
+    );
+
+  const burnRate =
+    PredictiveEngine.calculateBurnRate(
+      projectedSpending
+    );
+
+  const runway =
+    PredictiveEngine.calculateRunway(
+      currentTotal,
+      burnRate
+    );
+
+  const healthScore =
+    PredictiveEngine.calculateHealthScore(
+      {
+        income:
+          currentTotal,
+
+        expenses:
+          projectedSpending,
+
+        savings:
+          forecastSavings,
+      }
+    );
+
+  const healthLabel =
+    PredictiveEngine.getHealthLabel(
+      healthScore
+    );
+
+  const investmentProjection =
+    PredictiveEngine.projectInvestmentGrowth(
+      {
+        principal:
+          currentTotal,
+
+        monthlyContribution:
+          50000,
+
+        annualRate: 12,
+
+        years: 5,
+      }
+    );
+
+  /*
+   -----------------------------------
+   TOTAL
+   -----------------------------------
+  */
+
+  const total =
+    entries.reduce(
+      (acc, entry) =>
+        acc + entry.amount,
+      0
+    );
+
+  /*
+   -----------------------------------
+   UNIQUE CATEGORIES
+   -----------------------------------
+  */
+
+  const categories = [
+    ...new Set(
+      entries.map(
+        (entry) =>
+          entry.category
+      )
+    ),
+  ];
+
+  /*
+   -----------------------------------
+   DATE LABEL
+   -----------------------------------
+  */
+
+  const dateLabel = `${
+    dateRange.start.toLocaleDateString()
+  } → ${dateRange.end.toLocaleDateString()}`;
+
+  /*
+   -----------------------------------
+   CHART DATA
+   -----------------------------------
+  */
+
+  let chartData: {
+    name: string;
+    value: number;
+  }[] = [];
+
+  /*
+   -----------------------------------
+   EXPENSES
+   CATEGORY DISTRIBUTION
+   -----------------------------------
+  */
+
+  if (type === "expenses") {
+    const categoryMap =
+      new Map<
+        string,
+        number
+      >();
+
+    entries.forEach(
+      (entry) => {
+        const current =
+          categoryMap.get(
+            entry.category
+          ) || 0;
+
+        categoryMap.set(
+          entry.category,
+          current +
+            entry.amount
+        );
+      }
+    );
+
+    chartData =
+      Array.from(
+        categoryMap.entries()
+      ).map(
+        ([
+          category,
+          amount,
+        ]) => ({
+          name: category,
+          value: amount,
+        })
+      );
   }
 
-  if (entries.length === 0) {
-    insight =
-      "No financial records available yet for this category.";
+  /*
+   -----------------------------------
+   OTHER TYPES
+   TIMELINE TREND
+   -----------------------------------
+  */
+
+  else {
+    const groupedMap =
+      new Map<
+        string,
+        number
+      >();
+
+    entries.forEach(
+      (entry) => {
+        const date =
+          new Date(
+            entry.createdAt
+          ).toLocaleDateString();
+
+        const current =
+          groupedMap.get(
+            date
+          ) || 0;
+
+        groupedMap.set(
+          date,
+          current +
+            entry.amount
+        );
+      }
+    );
+
+    chartData =
+      Array.from(
+        groupedMap.entries()
+      ).map(
+        ([name, value]) => ({
+          name,
+          value,
+        })
+      );
   }
 
   /*
@@ -130,166 +475,147 @@ export default async function AnalyticsPage({
       <div className="max-w-7xl mx-auto space-y-8">
         {/* HEADER */}
 
-        <div className="space-y-2">
-          <h1 className="text-5xl font-bold">
-            {type.replaceAll(
-              "_",
-              " "
-            )}{" "}
-            Analytics
-          </h1>
+        <div className="space-y-6">
+          <Link
+            href="/dashboard"
+            className="
+              inline-flex
+              items-center
+              gap-2
+              text-sm
+              text-zinc-400
+              hover:text-white
+              transition
+            "
+          >
+            ← Back to Dashboard
+          </Link>
 
-          <p className="text-zinc-400 text-lg">
-            Deep financial
-            intelligence dashboard
-          </p>
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+            <div>
+              <h1 className="text-5xl font-bold capitalize">
+                {type.replace(
+                  "-",
+                  " "
+                )}
+              </h1>
+
+              <p className="text-zinc-400 mt-2">
+                {
+                  descriptionMap[
+                    type
+                  ]
+                }
+              </p>
+
+              <p className="text-sm text-zinc-500 mt-3">
+                {dateLabel}
+              </p>
+            </div>
+
+            {/* EXPORT */}
+
+            <ExportButton
+              type={type}
+            />
+          </div>
         </div>
 
-        {/* METRICS */}
+        {/* DATE FILTER */}
+
+        <DateRangeFilter
+          currentType={type}
+        />
+
+        {/* COMPARISON */}
+
+        <ComparisonCards
+          current={
+            currentTotal
+          }
+          previous={
+            previousTotal
+          }
+          percentage={
+            percentageChange
+          }
+          trend={trend}
+        />
+
+        {/* AI INSIGHTS */}
+
+        <AIInsights
+          insights={insights}
+        />
+
+        {/* PREDICTIVE DASHBOARD */}
+
+        <PredictiveDashboard
+          projectedSpending={
+            projectedSpending
+          }
+          forecastSavings={
+            forecastSavings
+          }
+          burnRate={burnRate}
+          runway={runway}
+          healthScore={
+            healthScore
+          }
+          healthLabel={
+            healthLabel
+          }
+          investmentProjection={
+            investmentProjection
+          }
+        />
+
+        {/* SUMMARY */}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <MetricCard
-            title="Total"
-            value={`₦${total.toLocaleString()}`}
-          />
-
-          <MetricCard
-            title="Average"
-            value={`₦${average.toLocaleString()}`}
-          />
-
-          <MetricCard
-            title="Transactions"
-            value={`${entries.length}`}
-          />
-        </div>
-
-        {/* AI INSIGHT */}
-
-        <AIInsightCard
-          insight={insight}
-        />
-
-        {/* CHART */}
-
-        <AnalyticsChart
-          data={trend}
-        />
-
-        {/* CATEGORY BREAKDOWN */}
-
-        <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">
-              Category Breakdown
-            </h2>
-
+          <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
             <p className="text-zinc-400 text-sm">
-              Allocation analysis
+              Total Volume
             </p>
-          </div>
 
-          <div className="space-y-4">
-            {categoryBreakdown.map(
-              (item) => (
-                <div
-                  key={
-                    item.category
-                  }
-                  className="flex items-center justify-between border border-zinc-800 rounded-2xl p-4"
-                >
-                  <p className="font-semibold text-white capitalize">
-                    {
-                      item.category
-                    }
-                  </p>
-
-                  <p className="font-bold text-white">
-                    ₦
-                    {item.amount.toLocaleString()}
-                  </p>
-                </div>
-              )
-            )}
-          </div>
-        </div>
-
-        {/* LARGEST TRANSACTIONS */}
-
-        <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">
-              Largest Transactions
+            <h2 className="text-4xl font-bold mt-3">
+              ₦
+              {total.toLocaleString()}
             </h2>
-
-            <p className="text-zinc-400 text-sm">
-              Top 5
-            </p>
           </div>
 
-          <div className="space-y-4">
-            {largest.map(
-              (entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between border border-zinc-800 rounded-2xl p-4"
-                >
-                  <div>
-                    <p className="font-semibold text-white">
-                      {
-                        entry.title
-                      }
-                    </p>
+          <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
+            <p className="text-zinc-400 text-sm">
+              Transactions
+            </p>
 
-                    <p className="text-sm text-zinc-400">
-                      {
-                        entry.category
-                      }
-                    </p>
-                  </div>
+            <h2 className="text-4xl font-bold mt-3">
+              {
+                entries.length
+              }
+            </h2>
+          </div>
 
-                  <p className="font-bold text-white">
-                    ₦
-                    {entry.amount.toLocaleString()}
-                  </p>
-                </div>
-              )
-            )}
+          <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
+            <p className="text-zinc-400 text-sm">
+              Categories
+            </p>
+
+            <h2 className="text-4xl font-bold mt-3">
+              {
+                categories.length
+              }
+            </h2>
           </div>
         </div>
 
-        {/* TABLE */}
+        {/* ANALYTICS */}
 
-        <TransactionsTable
+        <AnalyticsClient
           entries={entries}
+          type={type}
         />
       </div>
     </main>
-  );
-}
-
-/*
- -----------------------------------
- METRIC CARD
- -----------------------------------
-*/
-
-function MetricCard({
-  title,
-  value,
-}: {
-  title: string;
-  value: string;
-}) {
-  return (
-    <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
-      <p className="text-sm text-zinc-400">
-        {title}
-      </p>
-
-      <h3 className="text-3xl font-bold mt-3 text-white">
-        {value}
-      </h3>
-    </div>
   );
 }

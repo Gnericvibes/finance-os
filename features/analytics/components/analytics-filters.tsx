@@ -1,34 +1,61 @@
 "use client";
 
 interface AnalyticsFiltersProps {
-  currentFilter: string;
+  category: string;
+
+  onCategoryChange: (
+    value: string
+  ) => void;
 }
 
-const filters = [
-  "7D",
-  "30D",
-  "90D",
-  "1Y",
-  "ALL",
+const categories = [
+  "all",
+  "food",
+  "transport",
+  "shopping",
+  "rent",
+  "salary",
+  "investment",
+  "airtime",
+  "health",
+  "entertainment",
 ];
 
 export function AnalyticsFilters({
-  currentFilter,
+  category,
+  onCategoryChange,
 }: AnalyticsFiltersProps) {
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      {filters.map((filter) => (
-        <button
-          key={filter}
-          className={`px-4 py-2 rounded-xl border transition-all ${
-            currentFilter === filter
-              ? "bg-white text-black border-white"
-              : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-600"
-          }`}
-        >
-          {filter}
-        </button>
-      ))}
+    <div className="flex flex-wrap gap-3">
+      {categories.map((item) => {
+        const active =
+          category === item;
+
+        return (
+          <button
+            key={item}
+            onClick={() =>
+              onCategoryChange(item)
+            }
+            className={`
+              px-4
+              py-2
+              rounded-xl
+              border
+              text-sm
+              capitalize
+              transition
+              ${
+                active
+                  ? "bg-white text-black border-white"
+                  : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-600"
+              }
+            `}
+          >
+            {item}
+          </button>
+        );
+      })}
     </div>
   );
 }
