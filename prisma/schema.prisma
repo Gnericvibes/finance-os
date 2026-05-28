@@ -1,232 +1,368 @@
 generator client {
-provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-provider = "postgresql"
-url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum EntryType {
-EXPENSE
-INCOME
-INVESTMENT
-DEBT_PAYMENT
-TRANSFER
+  EXPENSE
+  INCOME
+  INVESTMENT
+  DEBT_PAYMENT
+  TRANSFER
 }
 
 enum FinancialStage {
-SURVIVAL
-RECOVERY
-STABLE
-GROWTH
-WEALTH_BUILDING
+  SURVIVAL
+  RECOVERY
+  STABLE
+  GROWTH
+  WEALTH_BUILDING
+}
+
+enum EmploymentType {
+  SALARIED
+  FREELANCER
+  BUSINESS_OWNER
+  STUDENT
+  UNEMPLOYED
+}
+
+enum IncomeFrequency {
+  MONTHLY
+  WEEKLY
+  IRREGULAR
+}
+
+enum FinancialGoal {
+  EMERGENCY_FUND
+  DEBT_FREE
+  HOME_OWNERSHIP
+  BUSINESS
+  RETIREMENT
+  FINANCIAL_FREEDOM
 }
 
 model User {
-id            String   @id @default(cuid())
+  id String @id @default(cuid())
 
-name          String
-email         String   @unique
-emailVerified Boolean  @default(false)
+  name          String
+  email         String  @unique
+  emailVerified Boolean @default(false)
 
-image         String?
+  image String?
 
-createdAt     DateTime @default(now())
-updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-profile       Profile?
-blueprint     PFOSBlueprint?
+  profile            Profile?
+  blueprint          PFOSBlueprint?
+  financialProfile   FinancialProfile?
+  financialBlueprint FinancialBlueprint?
 
-entries       Entry[]
-snapshots     Snapshot[]
+  entries       Entry[]
+  snapshots     Snapshot[]
+  conversations Conversation[]
 
-conversations Conversation[]
-budgets       Budget[]
+  sessions Session[]
+  accounts Account[]
 
-sessions      Session[]
-accounts      Account[]
+  budgetEntries Budget[]
+  budgets       BudgetAllocation[]
+
+  savingsAccounts SavingsAccount[]
 }
 
 model Profile {
-id String @id @default(cuid())
+  id String @id @default(cuid())
 
-monthlyIncome    Float
-employmentStatus String
+  monthlyIncome    Float
+  employmentStatus String
 
-housingCost        Float
-utilitiesCost      Float
-transportationCost Float
-foodCost           Float
+  housingCost        Float
+  utilitiesCost      Float
+  transportationCost Float
+  foodCost           Float
 
-debtAmount         Float
-debtMonthlyPayment Float
+  debtAmount         Float
+  debtMonthlyPayment Float
 
-emergencyFundGoal Float
-savingsGoal       Float
+  emergencyFundGoal Float
+  savingsGoal       Float
 
-dependents Int @default(0)
+  dependents Int @default(0)
 
-financialStage FinancialStage
+  financialStage FinancialStage
 
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-userId String @unique
-user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PFOSBlueprint {
-id String @id @default(cuid())
+  id String @id @default(cuid())
 
-financialStage FinancialStage
+  financialStage FinancialStage
 
-survivalAllocation   Float
-debtAllocation       Float
-emergencyAllocation  Float
-investmentAllocation Float
-lifestyleAllocation  Float
+  survivalAllocation   Float
+  debtAllocation       Float
+  emergencyAllocation  Float
+  investmentAllocation Float
+  lifestyleAllocation  Float
 
-debtToIncomeRatio Float
-savingsRate       Float
-liquidityScore    Float
-pressureScore     Float
-stabilityScore    Float
+  debtToIncomeRatio Float
+  savingsRate       Float
+  liquidityScore    Float
+  pressureScore     Float
+  stabilityScore    Float
 
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-userId String @unique
-user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Entry {
-id String @id @default(cuid())
+  id String @id @default(cuid())
 
-type EntryType
+  type EntryType
 
-title       String
-description String?
+  title       String
+  description String?
 
-amount Float
+  amount Float
 
-category String
+  category String
 
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-isDeleted Boolean @default(false)
+  isDeleted Boolean @default(false)
 
-userId String
-user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Conversation {
-id String @id @default(cuid())
+  id String @id @default(cuid())
 
-title String?
+  title String?
 
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-userId String
-user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 
-messages ChatMessage[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages ChatMessage[]
 }
 
 model ChatMessage {
-id String @id @default(cuid())
+  id String @id @default(cuid())
 
-role    String
-content String
+  role    String
+  content String
 
-createdAt DateTime @default(now())
+  createdAt DateTime @default(now())
 
-conversationId String
-conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 model Snapshot {
-id String @id @default(cuid())
+  id String @id @default(cuid())
 
-title       String
-description String?
+  title       String
+  description String?
 
-createdAt DateTime @default(now())
+  createdAt DateTime @default(now())
 
-userId String
-user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Budget {
-id String @id @default(cuid())
+  id String @id @default(cuid())
 
-name String
+  name String
 
-month Int
-year  Int
+  month Int
+  year  Int
 
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-userId String
-user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 
-categories BudgetCategory[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categories BudgetCategory[]
 }
 
 model BudgetCategory {
-id String @id @default(cuid())
+  id String @id @default(cuid())
 
-category String
+  category String
 
-limitAmount Float
+  limitAmount Float
 
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-budgetId String
-budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetId String
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 }
 
 model Session {
-id String @id
+  id String @id
 
-expiresAt DateTime
+  expiresAt DateTime
 
-token String @unique
+  token String @unique
 
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-ipAddress String?
-userAgent String?
+  ipAddress String?
+  userAgent String?
 
-userId String
-user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
-id String @id
+  id String @id
 
-accountId  String
-providerId String
+  accountId  String
+  providerId String
 
-userId String
-user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 
-accessToken  String?
-refreshToken String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-idToken String?
+  accessToken  String?
+  refreshToken String?
 
-accessTokenExpiresAt  DateTime?
-refreshTokenExpiresAt DateTime?
+  idToken String?
 
-scope    String?
-password String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
 
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  scope    String?
+  password String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FinancialProfile {
+  id String @id @default(cuid())
+
+  userId String @unique
+
+  employmentType EmploymentType
+
+  monthlyIncome Float
+
+  additionalIncome Float?
+
+  incomeFrequency IncomeFrequency
+
+  hasDebt Boolean @default(false)
+
+  totalDebt Float?
+
+  monthlyDebtPayments Float?
+
+  debtInterestRate Float?
+
+  missedPayments Boolean @default(false)
+
+  mainFinancialGoal FinancialGoal
+
+  emergencySavingsGoal Float?
+
+  interestedInInvesting Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FinancialBlueprint {
+  id String @id @default(cuid())
+
+  userId String @unique
+
+  investmentAllocation Float
+
+  debtAllocation Float
+
+  treasuryAllocation Float
+
+  operationalAllocation Float
+
+  emergencyAllocation Float
+
+  isDebtFree Boolean
+
+  financialHealthScore Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BudgetAllocation {
+  id String @id @default(cuid())
+
+  userId String
+
+  category String
+
+  recommended Float
+
+  actual Float @default(0)
+
+  percentage Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SavingsAccount {
+  id String @id @default(cuid())
+
+  userId String
+
+  emergencyFund Float @default(0)
+
+  treasurySavings Float @default(0)
+
+  goalSavings Float @default(0)
+
+  investmentCash Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

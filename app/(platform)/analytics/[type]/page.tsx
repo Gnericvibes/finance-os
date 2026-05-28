@@ -1,14 +1,16 @@
 import { redirect } from "next/navigation";
-
 import { headers } from "next/headers";
-
 import Link from "next/link";
 
 import { auth } from "@/lib/auth";
-
 import { db } from "@/lib/db";
 
-import { EntryType } from "@prisma/client";
+type EntryType =
+  | "INCOME"
+  | "EXPENSE"
+  | "INVESTMENT"
+  | "DEBT_PAYMENT"
+  | "TRANSFER";
 
 import { AnalyticsClient } from "@/features/analytics/components/analytics-client";
 
@@ -22,14 +24,6 @@ import { DateRangeEngine } from "@/features/analytics/services/date-range-engine
 
 import { ComparativeEngine } from "@/features/analytics/services/comparative-engine";
 
-import { IntelligenceEngine } from "@/features/intelligence/services/intelligence-engine";
-
-import { AIInsights } from "@/features/intelligence/components/ai-insights";
-
-import { PredictiveEngine } from "@/features/intelligence/services/predictive-engine";
-
-import { PredictiveDashboard } from "@/features/intelligence/components/predictive-dashboard";
-
 interface AnalyticsPageProps {
   params: Promise<{
     type: string;
@@ -37,7 +31,6 @@ interface AnalyticsPageProps {
 
   searchParams: Promise<{
     from?: string;
-
     to?: string;
   }>;
 }
@@ -119,20 +112,15 @@ export default async function AnalyticsPage({
     string,
     EntryType
   > = {
-    income:
-      EntryType.INCOME,
+    income: "INCOME",
 
-    expenses:
-      EntryType.EXPENSE,
+    expenses: "EXPENSE",
 
-    investments:
-      EntryType.INVESTMENT,
+    investments: "INVESTMENT",
 
-    "debt-payment":
-      EntryType.DEBT_PAYMENT,
+    "debt-payment": "DEBT_PAYMENT",
 
-    transfer:
-      EntryType.TRANSFER,
+    transfer: "TRANSFER",
   };
 
   const entryType =
@@ -250,92 +238,13 @@ export default async function AnalyticsPage({
 
   /*
    -----------------------------------
-   AI INSIGHTS
-   -----------------------------------
-  */
-
-  const insights =
-    IntelligenceEngine.generateInsights(
-      {
-        entries,
-
-        currentTotal,
-
-        previousTotal,
-      }
-    );
-
-  /*
-   -----------------------------------
-   PREDICTIVE INTELLIGENCE
-   -----------------------------------
-  */
-
-  const projectedSpending =
-    PredictiveEngine.projectMonthlySpending(
-      entries
-    );
-
-  const forecastSavings =
-    PredictiveEngine.forecastSavings(
-      currentTotal,
-      projectedSpending
-    );
-
-  const burnRate =
-    PredictiveEngine.calculateBurnRate(
-      projectedSpending
-    );
-
-  const runway =
-    PredictiveEngine.calculateRunway(
-      currentTotal,
-      burnRate
-    );
-
-  const healthScore =
-    PredictiveEngine.calculateHealthScore(
-      {
-        income:
-          currentTotal,
-
-        expenses:
-          projectedSpending,
-
-        savings:
-          forecastSavings,
-      }
-    );
-
-  const healthLabel =
-    PredictiveEngine.getHealthLabel(
-      healthScore
-    );
-
-  const investmentProjection =
-    PredictiveEngine.projectInvestmentGrowth(
-      {
-        principal:
-          currentTotal,
-
-        monthlyContribution:
-          50000,
-
-        annualRate: 12,
-
-        years: 5,
-      }
-    );
-
-  /*
-   -----------------------------------
    TOTAL
    -----------------------------------
   */
 
   const total =
     entries.reduce(
-      (acc, entry) =>
+      (acc: any, entry: { amount: any; }) =>
         acc + entry.amount,
       0
     );
@@ -349,7 +258,7 @@ export default async function AnalyticsPage({
   const categories = [
     ...new Set(
       entries.map(
-        (entry) =>
+        (entry: { category: any; }) =>
           entry.category
       )
     ),
@@ -364,105 +273,6 @@ export default async function AnalyticsPage({
   const dateLabel = `${
     dateRange.start.toLocaleDateString()
   } → ${dateRange.end.toLocaleDateString()}`;
-
-  /*
-   -----------------------------------
-   CHART DATA
-   -----------------------------------
-  */
-
-  let chartData: {
-    name: string;
-    value: number;
-  }[] = [];
-
-  /*
-   -----------------------------------
-   EXPENSES
-   CATEGORY DISTRIBUTION
-   -----------------------------------
-  */
-
-  if (type === "expenses") {
-    const categoryMap =
-      new Map<
-        string,
-        number
-      >();
-
-    entries.forEach(
-      (entry) => {
-        const current =
-          categoryMap.get(
-            entry.category
-          ) || 0;
-
-        categoryMap.set(
-          entry.category,
-          current +
-            entry.amount
-        );
-      }
-    );
-
-    chartData =
-      Array.from(
-        categoryMap.entries()
-      ).map(
-        ([
-          category,
-          amount,
-        ]) => ({
-          name: category,
-          value: amount,
-        })
-      );
-  }
-
-  /*
-   -----------------------------------
-   OTHER TYPES
-   TIMELINE TREND
-   -----------------------------------
-  */
-
-  else {
-    const groupedMap =
-      new Map<
-        string,
-        number
-      >();
-
-    entries.forEach(
-      (entry) => {
-        const date =
-          new Date(
-            entry.createdAt
-          ).toLocaleDateString();
-
-        const current =
-          groupedMap.get(
-            date
-          ) || 0;
-
-        groupedMap.set(
-          date,
-          current +
-            entry.amount
-        );
-      }
-    );
-
-    chartData =
-      Array.from(
-        groupedMap.entries()
-      ).map(
-        ([name, value]) => ({
-          name,
-          value,
-        })
-      );
-  }
 
   /*
    -----------------------------------
@@ -540,34 +350,6 @@ export default async function AnalyticsPage({
             percentageChange
           }
           trend={trend}
-        />
-
-        {/* AI INSIGHTS */}
-
-        <AIInsights
-          insights={insights}
-        />
-
-        {/* PREDICTIVE DASHBOARD */}
-
-        <PredictiveDashboard
-          projectedSpending={
-            projectedSpending
-          }
-          forecastSavings={
-            forecastSavings
-          }
-          burnRate={burnRate}
-          runway={runway}
-          healthScore={
-            healthScore
-          }
-          healthLabel={
-            healthLabel
-          }
-          investmentProjection={
-            investmentProjection
-          }
         />
 
         {/* SUMMARY */}
