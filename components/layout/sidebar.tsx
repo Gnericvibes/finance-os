@@ -12,7 +12,7 @@ const navigation = [
 
   {
     name: "Blueprint",
-    href: "/blueprint",
+    href: "/allocations",
   },
 
   {
