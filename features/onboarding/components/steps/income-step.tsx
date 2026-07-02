@@ -41,7 +41,7 @@ export function IncomeStep({
         className="w-full p-4 rounded-2xl bg-zinc-900 border border-zinc-800"
       />
 
-     <select
+          <select
   {...register(
     "incomeFrequency"
   )}
@@ -51,20 +51,24 @@ export function IncomeStep({
     Select Income Frequency
   </option>
 
-  <option value="DAILY">
-    Daily
+  <option value="MONTHLY">
+    Monthly
   </option>
 
   <option value="WEEKLY">
     Weekly
   </option>
 
-  <option value="MONTHLY">
-    Monthly
+  <option value="BI_WEEKLY">
+    Bi-Weekly
   </option>
 
-  <option value="IRREGULAR">
-    Irregular
+  <option value="QUARTERLY">
+    Quarterly
+  </option>
+
+  <option value="ANNUALLY">
+    Annually
   </option>
 </select>
     </div>

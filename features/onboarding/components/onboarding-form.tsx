@@ -274,31 +274,31 @@ export function OnboardingForm() {
         }
       />
 
-      <form
+            <form
         onSubmit={handleSubmit(
           onSubmit
         )}
         className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-950 p-8 shadow-2xl"
       >
         {renderStep()}
-      </form>
 
-      {currentStep <
-        6 && (
-        <div className="mt-8">
-          <OnboardingNavigation
-            currentStep={
-              currentStep
-            }
-            onNext={
-              handleNext
-            }
-            onBack={
-              previousStep
-            }
-          />
-        </div>
-      )}
+        {currentStep <
+          6 && (
+          <div className="mt-8">
+            <OnboardingNavigation
+              currentStep={
+                currentStep
+              }
+              onNext={
+                handleNext
+              }
+              onBack={
+                previousStep
+              }
+            />
+          </div>
+        )}
+      </form>
     </div>
   );
 }
