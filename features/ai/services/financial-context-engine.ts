@@ -1,21 +1,18 @@
 import { db } from "@/lib/db";
 
 export class FinancialContextEngine {
-  static async build(
-    userId: string
-  ) {
+  static async build(userId: string) {
     /*
      -----------------------------------
      PROFILE
      -----------------------------------
     */
 
-    const profile =
-      await db.profile.findUnique({
-        where: {
-          userId,
-        },
-      });
+    const profile = await db.financialProfile.findUnique({
+      where: {
+        userId,
+      },
+    });
 
     /*
      -----------------------------------
@@ -23,14 +20,16 @@ export class FinancialContextEngine {
      -----------------------------------
     */
 
-    const blueprint =
-      await db.pFOSBlueprint.findUnique(
-        {
-          where: {
-            userId,
-          },
-        }
-      );
+        const blueprint = await db.financialBlueprint.findFirst({
+      where: {
+        userId,
+        isActive: true,
+      },
+      orderBy: {
+        version: "desc",
+      },
+    });
+
 
     /*
      -----------------------------------
@@ -38,18 +37,27 @@ export class FinancialContextEngine {
      -----------------------------------
     */
 
-    const entries =
-      await db.entry.findMany({
-        where: {
-          userId,
-        },
+    const entries = await db.entry.findMany({
+      where: {
+        userId,
+      },
 
-        orderBy: {
-          createdAt: "desc",
-        },
+      include: {
+        category: true,
+      },
 
-        take: 100,
-      });
+      orderBy: {
+        createdAt: "desc",
+      },
+
+      take: 100,
+    });
+
+    const normalizedEntries = entries.map((entry) => ({
+      type: entry.type,
+      amount: Number(entry.amount),
+      category: entry.category?.name ?? "Uncategorized",
+    }));
 
     /*
      -----------------------------------
@@ -57,16 +65,19 @@ export class FinancialContextEngine {
      -----------------------------------
     */
 
-    const budgets =
-      await db.budget.findMany({
-        where: {
-          userId,
-        },
+    const budgets = await db.budget.findMany({
+      where: {
+        userId,
+      },
 
-        include: {
-          categories: true,
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
         },
-      });
+      },
+    });
 
     /*
      -----------------------------------
@@ -74,35 +85,16 @@ export class FinancialContextEngine {
      -----------------------------------
     */
 
-    const income = entries
-      .filter(
-        (e) => e.type === "INCOME"
-      )
-      .reduce(
-        (acc, e) =>
-          acc + e.amount,
-        0
-      );
+    const income = normalizedEntries
+      .filter((e) => e.type === "INCOME")
+      .reduce((acc, e) => acc + e.amount, 0);
 
-    const expenses = entries
-      .filter(
-        (e) => e.type === "EXPENSE"
-      )
-      .reduce(
-        (acc, e) =>
-          acc + e.amount,
-        0
-      );
+    const expenses = normalizedEntries
+      .filter((e) => e.type === "EXPENSE" || e.type === "DEBT_PAYMENT")
+      .reduce((acc, e) => acc + e.amount, 0);
 
     const savingsRate =
-      income === 0
-        ? 0
-        : Math.round(
-            ((income -
-              expenses) /
-              income) *
-              100
-          );
+      income === 0 ? 0 : Math.round(((income - expenses) / income) * 100);
 
     /*
      -----------------------------------
@@ -110,32 +102,22 @@ export class FinancialContextEngine {
      -----------------------------------
     */
 
-    const budgetWarnings: string[] =
-      [];
+    const budgetWarnings: string[] = [];
 
     for (const budget of budgets) {
       for (const category of budget.categories) {
-        const spent = entries
+        const spent = normalizedEntries
           .filter(
             (entry) =>
-              entry.type ===
-                "EXPENSE" &&
-              entry.category ===
-                category.category
+              entry.type === "EXPENSE" &&
+              entry.category.toLowerCase() ===
+                category.category.name.toLowerCase()
           )
-          .reduce(
-            (acc, entry) =>
-              acc +
-              entry.amount,
-            0
-          );
+          .reduce((acc, entry) => acc + entry.amount, 0);
 
-        if (
-          spent >
-          category.limitAmount
-        ) {
+        if (spent > Number(category.limitAmount)) {
           budgetWarnings.push(
-            `${category.category} exceeded budget`
+            `${category.category.name} exceeded budget`
           );
         }
       }
@@ -147,50 +129,26 @@ export class FinancialContextEngine {
      -----------------------------------
     */
 
-    const categoryMap =
-      new Map<
-        string,
-        number
-      >();
+    const categoryMap = new Map<string, number>();
 
-    entries
-      .filter(
-        (e) =>
-          e.type ===
-          "EXPENSE"
-      )
+    normalizedEntries
+      .filter((e) => e.type === "EXPENSE")
       .forEach((e) => {
-        categoryMap.set(
-          e.category,
-          (categoryMap.get(
-            e.category
-          ) || 0) +
-            e.amount
-        );
+        categoryMap.set(e.category, (categoryMap.get(e.category) || 0) + e.amount);
       });
 
-    const topSpendingCategories =
-      Array.from(
-        categoryMap.entries()
-      )
-        .sort(
-          (a, b) =>
-            b[1] - a[1]
-        )
-        .slice(0, 3)
-        .map(([category]) => category);
+    const topSpendingCategories = Array.from(categoryMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([category]) => category);
 
     return {
       profile,
       blueprint,
-
       income,
       expenses,
-
       savingsRate,
-
       budgetWarnings,
-
       topSpendingCategories,
     };
   }

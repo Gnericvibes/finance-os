@@ -47,14 +47,38 @@ export async function createEntry(
      -----------------------------------
     */
 
-    const entry =
-      await db.entry.create({
-        data: {
-          ...validated,
+        const categoryName = validated.category.trim();
+
+    const category =
+      (await db.category.findFirst({
+        where: {
           userId: session.user.id,
+          name: {
+            equals: categoryName,
+            mode: "insensitive",
+          },
         },
-      });
-revalidatePath("/dashboard");
+      })) ??
+      (await db.category.create({
+        data: {
+          userId: session.user.id,
+          name: categoryName,
+        },
+      }));
+
+        const entry = await db.entry.create({
+      data: {
+        type: validated.type,
+        title: validated.title,
+        amount: validated.amount,
+        userId: session.user.id,
+        categoryId: category.id,
+      },
+    });
+
+
+    revalidatePath("/dashboard");
+
     /*
      -----------------------------------
      SUCCESS

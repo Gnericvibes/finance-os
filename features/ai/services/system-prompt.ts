@@ -1,7 +1,15 @@
+export type SystemPromptContext = {
+  profile: { fullName: string } | null;
+  blueprint: { blueprintMode: string } | null;
+  income: number;
+  expenses: number;
+  savingsRate: number;
+  budgetWarnings: string[];
+  topSpendingCategories: string[];
+};
+
 export class SystemPrompt {
-  static build(
-    context: any
-  ) {
+  static build(context: SystemPromptContext) {
     return `
 You are Finance OS AI.
 
@@ -15,7 +23,7 @@ Your job:
 - improve financial discipline
 
 Current Financial Stage:
-${context.profile?.financialStage || "UNKNOWN"}
+${context.blueprint?.blueprintMode || "UNKNOWN"}
 
 Income:
 ₦${context.income}

@@ -1,322 +1,486 @@
 generator client {
-  provider = "prisma-client-js"
+provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+provider = "postgresql"
+url = env("DATABASE_URL")
 }
 
 enum EntryType {
-  EXPENSE
-  INCOME
-  INVESTMENT
-  DEBT_PAYMENT
-  TRANSFER
+EXPENSE
+INCOME
+INVESTMENT
+DEBT_PAYMENT
+TRANSFER
 }
-
-enum FinancialStage {
-  SURVIVAL
-  RECOVERY
-  STABLE
-  GROWTH
-  WEALTH_BUILDING
-}
-
 enum EmploymentType {
-  SALARIED
-  FREELANCER
-  BUSINESS_OWNER
-  STUDENT
-  UNEMPLOYED
+EMPLOYED
+SELF_EMPLOYED
+BUSINESS_OWNER
+FREELANCER
+STUDENT
+UNEMPLOYED
+RETIRED
 }
 
 enum IncomeFrequency {
-  MONTHLY
-  WEEKLY
-  IRREGULAR
+MONTHLY
+WEEKLY
+BI_WEEKLY
+QUARTERLY
+ANNUALLY
 }
 
 enum FinancialGoal {
-  EMERGENCY_FUND
-  DEBT_FREE
-  HOME_OWNERSHIP
-  BUSINESS
-  RETIREMENT
-  FINANCIAL_FREEDOM
+EMERGENCY_FUND
+DEBT_FREEDOM
+HOME_OWNERSHIP
+BUSINESS_GROWTH
+RETIREMENT
+INVESTMENT
+WEALTH_BUILDING
+}
+
+enum MaritalStatus {
+SINGLE
+MARRIED
+DIVORCED
+WIDOWED
+}
+
+enum FinancialStage {
+SURVIVAL
+RECOVERY
+STABLE
+GROWTH
+WEALTH_BUILDING
+}
+
+enum AccountType {
+CASH
+BANK
+CREDIT
+INVESTMENT
+SAVINGS
 }
 
 model User {
-  id String @id @default(cuid())
+id String @id @default(cuid())
 
-  name          String
-  email         String  @unique
-  emailVerified Boolean @default(false)
+name String
+email String @unique
+emailVerified Boolean @default(false)
+image String?
 
-  image String?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+financialProfile FinancialProfile?
+householdExpenseProfile HouseholdExpenseProfile?
+financialBlueprints FinancialBlueprint[]
 
-  profile            Profile?
-  blueprint          PFOSBlueprint?
-  financialProfile   FinancialProfile?
-  financialBlueprint FinancialBlueprint?
+entries Entry[]
+snapshots Snapshot[]
 
-  entries       Entry[]
-  snapshots     Snapshot[]
-  conversations Conversation[]
+accounts Account[]
+sessions Session[]
 
-  sessions Session[]
-  accounts Account[]
+conversations Conversation[]
 
-  budgetEntries Budget[]
-  budgets       BudgetAllocation[]
+budgets Budget[]
+categories Category[]
 
-  savingsAccounts SavingsAccount[]
-}
+financialAccounts FinancialAccount[]
 
-model Profile {
-  id String @id @default(cuid())
+savingsGoals SavingsGoal[]
+savingsAccount SavingsAccount?
 
-  monthlyIncome    Float
-  employmentStatus String
-
-  housingCost        Float
-  utilitiesCost      Float
-  transportationCost Float
-  foodCost           Float
-
-  debtAmount         Float
-  debtMonthlyPayment Float
-
-  emergencyFundGoal Float
-  savingsGoal       Float
-
-  dependents Int @default(0)
-
-  financialStage FinancialStage
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId String @unique
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model PFOSBlueprint {
-  id String @id @default(cuid())
-
-  financialStage FinancialStage
-
-  survivalAllocation   Float
-  debtAllocation       Float
-  emergencyAllocation  Float
-  investmentAllocation Float
-  lifestyleAllocation  Float
-
-  debtToIncomeRatio Float
-  savingsRate       Float
-  liquidityScore    Float
-  pressureScore     Float
-  stabilityScore    Float
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId String @unique
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Entry {
-  id String @id @default(cuid())
-
-  type EntryType
-
-  title       String
-  description String?
-
-  amount Float
-
-  category String
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  isDeleted Boolean @default(false)
-
-  userId String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Conversation {
-  id String @id @default(cuid())
-
-  title String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  messages ChatMessage[]
-}
-
-model ChatMessage {
-  id String @id @default(cuid())
-
-  role    String
-  content String
-
-  createdAt DateTime @default(now())
-
-  conversationId String
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-}
-
-model Session {
-  id String @id
-
-  expiresAt DateTime
-
-  token String @unique
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  ipAddress String?
-  userAgent String?
-
-  userId String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Account {
-  id String @id
-
-  accountId  String
-  providerId String
-
-  userId String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  accessToken  String?
-  refreshToken String?
-
-  idToken String?
-
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-
-  scope    String?
-  password String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+budgetAllocations BudgetAllocation[]
 }
 
 model FinancialProfile {
-  id String @id @default(cuid())
+id String @id @default(cuid())
 
-  userId String @unique
+userId String @unique
 
-  employmentType EmploymentType
+fullName String
 
-  monthlyIncome Float
+employmentType EmploymentType
+maritalStatus MaritalStatus
 
-  additionalIncome Float?
+hasDependents Boolean @default(false)
+dependentsCount Int @default(0)
 
-  incomeFrequency IncomeFrequency
+currency String @default("NGN")
 
-  hasDebt Boolean @default(false)
+monthlyIncome Decimal @db.Decimal(18,2)
+additionalIncome Decimal? @db.Decimal(18,2)
 
-  totalDebt Float?
+incomeFrequency IncomeFrequency
 
-  monthlyDebtPayments Float?
+hasDebt Boolean @default(false)
 
-  debtInterestRate Float?
+totalDebt Decimal? @db.Decimal(18,2)
 
-  missedPayments Boolean @default(false)
+repaymentAmount Decimal? @db.Decimal(18,2)
 
-  mainFinancialGoal FinancialGoal
+mainFinancialGoal FinancialGoal
 
-  emergencySavingsGoal Float?
+emergencySavingsGoal Decimal? @db.Decimal(18,2)
 
-  interestedInInvesting Boolean @default(true)
+interestedInInvesting Boolean @default(true)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model HouseholdExpenseProfile {
+id String @id @default(cuid())
+
+userId String @unique
+
+rentHousing Decimal? @db.Decimal(18,2)
+food Decimal? @db.Decimal(18,2)
+transport Decimal? @db.Decimal(18,2)
+utilities Decimal? @db.Decimal(18,2)
+schoolFees Decimal? @db.Decimal(18,2)
+subscriptions Decimal? @db.Decimal(18,2)
+healthCare Decimal? @db.Decimal(18,2)
+miscellaneousExpenses Decimal? @db.Decimal(18,2)
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model FinancialBlueprint {
-  id String @id @default(cuid())
+id String @id @default(cuid())
 
-  userId String @unique
+userId String
 
-  investmentAllocation Float
+version Int @default(1)
 
-  debtAllocation Float
+isActive Boolean @default(true)
 
-  treasuryAllocation Float
+operationalAllocation Decimal @db.Decimal(18,2)
 
-  operationalAllocation Float
+debtAllocation Decimal @db.Decimal(18,2)
 
-  emergencyAllocation Float
+investmentAllocation Decimal @db.Decimal(18,2)
 
-  isDebtFree Boolean
+emergencyAllocation Decimal @db.Decimal(18,2)
 
-  financialHealthScore Float?
+operationalPercentage Float
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+debtPercentage Float
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+investmentPercentage Float
 
-model BudgetAllocation {
-  id String @id @default(cuid())
+emergencyPercentage Float
 
-  userId String
+financialHealthScore Float
 
-  category String
+blueprintMode FinancialStage
 
-  recommended Float
+isDebtFree Boolean @default(false)
 
-  actual Float @default(0)
+interpretation String?
 
-  percentage Float
+createdAt DateTime @default(now())
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+snapshots Snapshot[]
+
+@@unique([userId, version])
+@@index([userId, isActive])
 }
 
 model SavingsAccount {
-  id String @id @default(cuid())
+id String @id @default(cuid())
 
-  userId String
+userId String @unique
 
-  emergencyFund Float @default(0)
+emergencyFund Decimal @default(0) @db.Decimal(18,2)
 
-  treasurySavings Float @default(0)
+treasurySavings Decimal @default(0) @db.Decimal(18,2)
 
-  goalSavings Float @default(0)
+goalSavings Decimal @default(0) @db.Decimal(18,2)
 
-  investmentCash Float @default(0)
+investmentCash Decimal @default(0) @db.Decimal(18,2)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FinancialAccount {
+id String @id @default(cuid())
+
+userId String
+
+name String
+
+type AccountType
+
+balance Decimal @db.Decimal(18,2)
+
+currency String @default("NGN")
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+entries Entry[]
+}
+
+model Category {
+id String @id @default(cuid())
+
+userId String
+
+name String
+
+createdAt DateTime @default(now())
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+entries Entry[]
+
+budgetCategories BudgetCategory[]
+}
+
+model Entry {
+id String @id @default(cuid())
+
+type EntryType
+
+title String
+
+description String?
+
+amount Decimal @db.Decimal(18,2)
+
+isDeleted Boolean @default(false)
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+userId String
+
+accountId String?
+
+categoryId String?
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+account FinancialAccount? @relation(fields: [accountId], references: [id])
+
+category Category? @relation(fields: [categoryId], references: [id])
+
+histories EntryHistory[]
+}
+
+model EntryHistory {
+id String @id @default(cuid())
+
+entryId String
+
+oldAmount Decimal? @db.Decimal(18,2)
+
+newAmount Decimal? @db.Decimal(18,2)
+
+oldTitle String?
+
+newTitle String?
+
+changedAt DateTime @default(now())
+
+entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+}
+
+model Budget {
+id String @id @default(cuid())
+
+userId String
+
+name String
+
+month Int
+year Int
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+categories BudgetCategory[]
+}
+
+model BudgetCategory {
+id String @id @default(cuid())
+
+budgetId String
+
+categoryId String
+
+limitAmount Decimal @db.Decimal(18,2)
+
+budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+category Category @relation(fields: [categoryId], references: [id])
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+}
+
+model BudgetAllocation {
+id String @id @default(cuid())
+
+userId String
+
+category String
+
+recommended Decimal @db.Decimal(18,2)
+
+actual Decimal @default(0) @db.Decimal(18,2)
+
+percentage Float
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SavingsGoal {
+id String @id @default(cuid())
+
+userId String
+
+name String
+
+targetAmount Decimal @db.Decimal(18,2)
+
+currentAmount Decimal @default(0) @db.Decimal(18,2)
+
+targetDate DateTime?
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Snapshot {
+id String @id @default(cuid())
+
+userId String
+
+blueprintId String?
+
+title String
+
+description String?
+
+netWorth Decimal @default(0) @db.Decimal(18,2)
+
+cashPosition Decimal @default(0) @db.Decimal(18,2)
+
+debtPosition Decimal @default(0) @db.Decimal(18,2)
+
+investmentPosition Decimal @default(0) @db.Decimal(18,2)
+
+healthScore Float @default(0)
+
+createdAt DateTime @default(now())
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+blueprint FinancialBlueprint? @relation(fields: [blueprintId], references: [id], onDelete: SetNull)
+}
+
+model Conversation {
+id String @id @default(cuid())
+
+title String?
+
+userId String
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+messages ChatMessage[]
+}
+
+model ChatMessage {
+id String @id @default(cuid())
+
+role String
+
+content String
+
+createdAt DateTime @default(now())
+
+conversationId String
+
+conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+id String @id
+
+expiresAt DateTime
+
+token String @unique
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+ipAddress String?
+
+userAgent String?
+
+userId String
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+id String @id
+
+accountId String
+
+providerId String
+
+userId String
+
+accessToken String?
+
+refreshToken String?
+
+idToken String?
+
+accessTokenExpiresAt DateTime?
+
+refreshTokenExpiresAt DateTime?
+
+scope String?
+
+password String?
+
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -1,114 +1,148 @@
-import { FinancialStage } from "@prisma/client";
+// features/pfos/services/pfos-engine.ts
 
-type ProfileInput = {
+export type ProfileInput = {
   monthlyIncome: number;
 
-  housingCost: number;
-  utilitiesCost: number;
-  transportationCost: number;
-  foodCost: number;
+  rentHousing?: number | null;
+  food?: number | null;
+  transport?: number | null;
+  utilities?: number | null;
+  schoolFees?: number | null;
+  subscriptions?: number | null;
+  healthCare?: number | null;
+  miscellaneousExpenses?: number | null;
 
-  debtAmount: number;
-  debtMonthlyPayment: number;
+  totalDebt?: number | null;
+  repaymentAmount?: number | null;
 
-  emergencyFundGoal: number;
-  savingsGoal: number;
-
-  dependents: number;
+  dependentsCount?: number;
 };
+
+export type BlueprintMode =
+  | "SURVIVAL"
+  | "RECOVERY"
+  | "STABLE"
+  | "GROWTH"
+  | "WEALTH_BUILDING";
 
 export class PFOSEngine {
   /*
    -----------------------------------
-   CORE FINANCIAL CALCULATIONS
+   EXPENSE CALCULATIONS
    -----------------------------------
   */
 
   static calculateTotalExpenses(
     profile: ProfileInput
-  ) {
+  ): number {
     return (
-      profile.housingCost +
-      profile.utilitiesCost +
-      profile.transportationCost +
-      profile.foodCost +
-      profile.debtMonthlyPayment
+      (profile.rentHousing ?? 0) +
+      (profile.food ?? 0) +
+      (profile.transport ?? 0) +
+      (profile.utilities ?? 0) +
+      (profile.schoolFees ?? 0) +
+      (profile.subscriptions ?? 0) +
+      (profile.healthCare ?? 0) +
+      (profile.miscellaneousExpenses ?? 0) +
+      (profile.repaymentAmount ?? 0)
+    );
+  }
+
+  static calculateDisposableIncome(
+    profile: ProfileInput
+  ): number {
+    return (
+      profile.monthlyIncome -
+      this.calculateTotalExpenses(profile)
     );
   }
 
   static calculateSavingsRate(
     profile: ProfileInput
-  ) {
-    const expenses =
-      this.calculateTotalExpenses(profile);
+  ): number {
+    const disposable =
+      this.calculateDisposableIncome(profile);
 
-    const remaining =
-      profile.monthlyIncome - expenses;
+    if (profile.monthlyIncome <= 0) {
+      return 0;
+    }
 
     return (
-      (remaining / profile.monthlyIncome) *
+      (disposable / profile.monthlyIncome) *
       100
     );
   }
 
+  /*
+   -----------------------------------
+   DEBT ANALYSIS
+   -----------------------------------
+  */
+
   static calculateDebtToIncomeRatio(
     profile: ProfileInput
-  ) {
+  ): number {
+    if (profile.monthlyIncome <= 0) {
+      return 100;
+    }
+
     return (
-      (profile.debtMonthlyPayment /
+      ((profile.repaymentAmount ?? 0) /
         profile.monthlyIncome) *
       100
     );
   }
 
+  /*
+   -----------------------------------
+   LIQUIDITY ANALYSIS
+   -----------------------------------
+  */
+
   static calculateLiquidityScore(
     profile: ProfileInput
-  ) {
-    const expenses =
-      this.calculateTotalExpenses(profile);
+  ): number {
+    const disposable =
+      this.calculateDisposableIncome(profile);
 
-    const remaining =
-      profile.monthlyIncome - expenses;
+    if (disposable <= 0) return 10;
 
-    if (remaining <= 0) return 10;
+    const ratio =
+      disposable / profile.monthlyIncome;
 
-    if (
-      remaining >=
-      profile.monthlyIncome * 0.4
-    ) {
-      return 90;
-    }
+    if (ratio >= 0.4) return 90;
 
-    if (
-      remaining >=
-      profile.monthlyIncome * 0.2
-    ) {
-      return 70;
-    }
+    if (ratio >= 0.25) return 75;
+
+    if (ratio >= 0.15) return 60;
 
     return 40;
   }
 
+  /*
+   -----------------------------------
+   PRESSURE ANALYSIS
+   -----------------------------------
+  */
+
   static calculatePressureScore(
     profile: ProfileInput
-  ) {
+  ): number {
     const debtRatio =
-      this.calculateDebtToIncomeRatio(
-        profile
-      );
+      this.calculateDebtToIncomeRatio(profile);
 
-    const expenses =
-      this.calculateTotalExpenses(profile);
+    if (profile.monthlyIncome <= 0) {
+  return 100;
+}
 
-    const expenseRatio =
-      (expenses / profile.monthlyIncome) *
-      100;
+const expenseRatio =
+  (this.calculateTotalExpenses(profile) /
+    profile.monthlyIncome) *
+  100;
 
-    let score = 0;
-
-    score += debtRatio * 0.5;
-
-    score += expenseRatio * 0.5;
+    const score =
+      debtRatio * 0.5 +
+      expenseRatio * 0.5;
 
     return Math.min(
       Math.round(score),
@@ -116,15 +150,76 @@ export class PFOSEngine {
     );
   }
 
+static calculateFinancialHealthScore(
+  profile: ProfileInput
+): number {
+  const pressure =
+    this.calculatePressureScore(profile);
+
+  const liquidity =
+    this.calculateLiquidityScore(profile);
+
+  const savingsRate =
+    this.calculateSavingsRate(profile);
+
+  const debtRatio =
+    this.calculateDebtToIncomeRatio(profile);
+
+  const stage =
+    this.detectBlueprintMode(profile);
+
+  const stageBonusMap: Record<
+    BlueprintMode,
+    number
+  > = {
+    SURVIVAL: 0,
+    RECOVERY: 5,
+    STABLE: 10,
+    GROWTH: 15,
+    WEALTH_BUILDING: 20,
+  };
+
+  const stageBonus =
+    stageBonusMap[stage];
+
+  const debtPenalty =
+    debtRatio > 50
+      ? 20
+      : debtRatio > 35
+      ? 10
+      : debtRatio > 20
+      ? 5
+      : 0;
+
+  const baseScore =
+    liquidity * 0.35 +
+    savingsRate * 0.30 +
+    (100 - pressure) * 0.25 +
+    (100 - debtRatio) * 0.10;
+
+  const finalScore =
+    baseScore +
+    stageBonus -
+    debtPenalty;
+
+  return Math.max(
+    0,
+    Math.min(
+      Math.round(finalScore),
+      100
+    )
+  );
+}
+
   /*
    -----------------------------------
-   FINANCIAL STAGE DETECTION
+   PFOS MODE DETECTION
    -----------------------------------
   */
 
-  static detectFinancialStage(
+  static detectBlueprintMode(
     profile: ProfileInput
-  ): FinancialStage {
+  ): BlueprintMode {
     const pressure =
       this.calculatePressureScore(profile);
 
@@ -132,173 +227,228 @@ export class PFOSEngine {
       this.calculateSavingsRate(profile);
 
     if (pressure >= 80) {
-      return FinancialStage.SURVIVAL;
+      return "SURVIVAL";
     }
 
     if (pressure >= 60) {
-      return FinancialStage.RECOVERY;
+      return "RECOVERY";
     }
 
     if (
       savingsRate >= 35 &&
       pressure < 30
     ) {
-      return FinancialStage.WEALTH_BUILDING;
+      return "WEALTH_BUILDING";
     }
 
     if (
       savingsRate >= 20 &&
       pressure < 50
     ) {
-      return FinancialStage.GROWTH;
+      return "GROWTH";
     }
 
-    return FinancialStage.STABLE;
+    return "STABLE";
   }
 
   /*
    -----------------------------------
-   BLUEPRINT ALLOCATION ENGINE
+   ALLOCATION ENGINE
    -----------------------------------
   */
 
   static generateAllocations(
-    stage: FinancialStage
+    mode: BlueprintMode
   ) {
-    switch (stage) {
-      case FinancialStage.SURVIVAL:
+    switch (mode) {
+      case "SURVIVAL":
         return {
-          survivalAllocation: 70,
-          debtAllocation: 20,
-          emergencyAllocation: 5,
-          investmentAllocation: 0,
-          lifestyleAllocation: 5,
+          operationalPercentage: 75,
+          debtPercentage: 20,
+          emergencyPercentage: 5,
+          investmentPercentage: 0,
         };
 
-      case FinancialStage.RECOVERY:
+      case "RECOVERY":
         return {
-          survivalAllocation: 60,
-          debtAllocation: 20,
-          emergencyAllocation: 10,
-          investmentAllocation: 5,
-          lifestyleAllocation: 5,
+          operationalPercentage: 65,
+          debtPercentage: 20,
+          emergencyPercentage: 10,
+          investmentPercentage: 5,
         };
 
-      case FinancialStage.STABLE:
+      case "STABLE":
         return {
-          survivalAllocation: 50,
-          debtAllocation: 10,
-          emergencyAllocation: 15,
-          investmentAllocation: 15,
-          lifestyleAllocation: 10,
+          operationalPercentage: 55,
+          debtPercentage: 10,
+          emergencyPercentage: 15,
+          investmentPercentage: 20,
         };
 
-      case FinancialStage.GROWTH:
+      case "GROWTH":
         return {
-          survivalAllocation: 40,
-          debtAllocation: 10,
-          emergencyAllocation: 15,
-          investmentAllocation: 25,
-          lifestyleAllocation: 10,
+          operationalPercentage: 45,
+          debtPercentage: 10,
+          emergencyPercentage: 15,
+          investmentPercentage: 30,
         };
 
-      case FinancialStage.WEALTH_BUILDING:
+      case "WEALTH_BUILDING":
         return {
-          survivalAllocation: 30,
-          debtAllocation: 5,
-          emergencyAllocation: 15,
-          investmentAllocation: 40,
-          lifestyleAllocation: 10,
+          operationalPercentage: 35,
+          debtPercentage: 5,
+          emergencyPercentage: 15,
+          investmentPercentage: 45,
         };
 
       default:
         return {
-          survivalAllocation: 50,
-          debtAllocation: 10,
-          emergencyAllocation: 15,
-          investmentAllocation: 15,
-          lifestyleAllocation: 10,
+          operationalPercentage: 55,
+          debtPercentage: 10,
+          emergencyPercentage: 15,
+          investmentPercentage: 20,
         };
     }
   }
 
   /*
    -----------------------------------
-   FULL BLUEPRINT GENERATION
+   COMPLETE PFOS BLUEPRINT
    -----------------------------------
   */
 
   static generateBlueprint(
     profile: ProfileInput
   ) {
-    const savingsRate =
-      this.calculateSavingsRate(profile);
-
-    const debtToIncomeRatio =
-      this.calculateDebtToIncomeRatio(
-        profile
-      );
-
-    const liquidityScore =
-      this.calculateLiquidityScore(
-        profile
-      );
-
-    const pressureScore =
-      this.calculatePressureScore(
-        profile
-      );
-
-    const financialStage =
-      this.detectFinancialStage(profile);
+    const mode =
+      this.detectBlueprintMode(profile);
 
     const allocations =
-      this.generateAllocations(
-        financialStage
-      );
+      this.generateAllocations(mode);
 
-    const stabilityScore =
-      Math.max(
-        100 - pressureScore,
-        0
+    const income =
+      profile.monthlyIncome;
+
+    const financialHealthScore =
+      this.calculateFinancialHealthScore(
+        profile
       );
 
     return {
-      financialStage,
+      blueprintMode: mode,
 
-      savingsRate,
-      debtToIncomeRatio,
+      operationalAllocation:
+        income *
+        (allocations.operationalPercentage /
+          100),
 
-      liquidityScore,
-      pressureScore,
-      stabilityScore,
+      debtAllocation:
+        income *
+        (allocations.debtPercentage / 100),
 
-      ...allocations,
+      emergencyAllocation:
+        income *
+        (allocations.emergencyPercentage /
+          100),
+
+      investmentAllocation:
+        income *
+        (allocations.investmentPercentage /
+          100),
+
+      operationalPercentage:
+        allocations.operationalPercentage,
+
+      debtPercentage:
+        allocations.debtPercentage,
+
+      emergencyPercentage:
+        allocations.emergencyPercentage,
+
+      investmentPercentage:
+        allocations.investmentPercentage,
+
+      financialHealthScore,
+
+      isDebtFree:
+        (profile.totalDebt ?? 0) <= 0,
+
+      savingsRate:
+        this.calculateSavingsRate(profile),
+
+      debtToIncomeRatio:
+        this.calculateDebtToIncomeRatio(
+          profile
+        ),
+
+      liquidityScore:
+        this.calculateLiquidityScore(
+          profile
+        ),
+
+      pressureScore:
+        this.calculatePressureScore(
+          profile
+        ),
+
+      stabilityScore:
+        100 -
+        this.calculatePressureScore(profile),
     };
   }
 
   /*
    -----------------------------------
-   ENTRY DATABASE METHODS
+   DATABASE METHODS
    -----------------------------------
   */
 
-  static async createEntry(data: {
+    static async createEntry(data: {
     title: string;
     description?: string;
     amount: number;
     category: string;
     userId: string;
+    type:
+      | "EXPENSE"
+      | "INCOME"
+      | "INVESTMENT"
+      | "DEBT_PAYMENT"
+      | "TRANSFER";
   }) {
-    const { db } = await import(
-      "@/lib/db"
-    );
+    const { db } = await import("@/lib/db");
 
-    return db.entry.create({
+    const categoryName = data.category.trim();
+
+    const category =
+      (await db.category.findFirst({
+        where: {
+          userId: data.userId,
+          name: {
+            equals: categoryName,
+            mode: "insensitive",
+          },
+        },
+      })) ??
+      (await db.category.create({
+        data: {
+          userId: data.userId,
+          name: categoryName,
+        },
+      }));
+
+        return db.entry.create({
       data: {
-        ...data,
-        type: "EXPENSE",
+        title: data.title,
+        description: data.description,
+        amount: data.amount,
+        userId: data.userId,
+                type: data.type,
+        categoryId: category.id,
+
       },
     });
+
   }
+
 }

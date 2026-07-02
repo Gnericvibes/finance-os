@@ -1,15 +1,22 @@
 import { redirect } from "next/navigation";
 
 import { headers } from "next/headers";
+import Link from "next/link";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { ensureMonthlySnapshot } from "@/lib/ensure-monthly-snapshot";
+
 
 import { EntryForm } from "@/features/entries/components/entry-form";
 
-import { DashboardEngine } from "@/features/dashboard/services/dashboard-engine";
+import {
+  DashboardEngine,
+  type DashboardEntry,
+} from "@/features/dashboard/services/dashboard-engine";
 
 import { SpendingChart } from "@/features/dashboard/components/spending-chart";
+
 
 export default async function DashboardPage() {
   /*
@@ -29,9 +36,12 @@ export default async function DashboardPage() {
    -----------------------------------
   */
 
-  if (!session?.user) {
+    if (!session?.user) {
     redirect("/sign-in");
   }
+
+  await ensureMonthlySnapshot(session.user.id);
+
 
   /*
    -----------------------------------
@@ -39,10 +49,14 @@ export default async function DashboardPage() {
    -----------------------------------
   */
 
-  const entries =
+    const entries =
     await db.entry.findMany({
       where: {
         userId: session.user.id,
+      },
+
+      include: {
+        category: true,
       },
 
       orderBy: {
@@ -52,36 +66,35 @@ export default async function DashboardPage() {
       take: 10,
     });
 
+  const normalizedEntries = entries.map((entry) => ({
+    ...entry,
+    amount: Number(entry.amount),
+    categoryName: entry.category?.name ?? "Uncategorized",
+  }));
+
+  const engineEntries: DashboardEntry[] = normalizedEntries.map((entry) => ({
+    type: entry.type,
+    amount: entry.amount,
+    category: entry.categoryName,
+  }));
+
+
   /*
    -----------------------------------
    ANALYTICS
    -----------------------------------
   */
 
-  const income =
-    DashboardEngine.getIncome(
-      entries
-    );
+    const income = DashboardEngine.getIncome(engineEntries);
 
-  const expenses =
-    DashboardEngine.getExpenses(
-      entries
-    );
+  const expenses = DashboardEngine.getExpenses(engineEntries);
 
-  const investments =
-    DashboardEngine.getInvestments(
-      entries
-    );
+  const investments = DashboardEngine.getInvestments(engineEntries);
 
-  const cashFlow =
-    DashboardEngine.getCashFlow(
-      entries
-    );
+  const cashFlow = DashboardEngine.getCashFlow(engineEntries);
 
-  const savingsRate =
-    DashboardEngine.getSavingsRate(
-      entries
-    );
+  const savingsRate = DashboardEngine.getSavingsRate(engineEntries);
+
 
   /*
    -----------------------------------
@@ -89,10 +102,9 @@ export default async function DashboardPage() {
    -----------------------------------
   */
 
-  const expenseBreakdown =
-    DashboardEngine.getExpenseBreakdown(
-      entries
-    );
+    const expenseBreakdown =
+    DashboardEngine.getExpenseBreakdown(engineEntries);
+
 
   /*
    -----------------------------------
@@ -105,22 +117,14 @@ export default async function DashboardPage() {
     number
   >();
 
-  entries
-    .filter(
-      (entry) =>
-        entry.type === "EXPENSE"
-    )
+    engineEntries
+    .filter((entry) => entry.type === "EXPENSE")
     .forEach((entry) => {
-      const current =
-        spendingMap.get(
-          entry.category
-        ) || 0;
+      const current = spendingMap.get(entry.category) || 0;
 
-      spendingMap.set(
-        entry.category,
-        current + entry.amount
-      );
+      spendingMap.set(entry.category, current + entry.amount);
     });
+
 
   const spendingData = Array.from(
     spendingMap.entries()
@@ -154,36 +158,28 @@ export default async function DashboardPage() {
 
         {/* LIVE ANALYTICS */}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <a
-            href="/analytics/income"
-            className="block"
-          >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <Link href="/analytics/income" className="block">
             <AnalyticsCard
               title="Income"
               value={`₦${income.toLocaleString()}`}
             />
-          </a>
+          </Link>
 
-          <a
-            href="/analytics/expenses"
-            className="block"
-          >
+          <Link href="/analytics/expenses" className="block">
             <AnalyticsCard
               title="Expenses"
               value={`₦${expenses.toLocaleString()}`}
             />
-          </a>
+          </Link>
 
-          <a
-            href="/analytics/investments"
-            className="block"
-          >
+          <Link href="/analytics/investments" className="block">
             <AnalyticsCard
               title="Investments"
               value={`₦${investments.toLocaleString()}`}
             />
-          </a>
+          </Link>
+
 
           <AnalyticsCard
             title="Cash Flow"
@@ -297,56 +293,41 @@ export default async function DashboardPage() {
               Recent Transactions
             </h2>
 
-            <p className="text-sm text-zinc-400">
-              {entries.length} Entries
+                        <p className="text-sm text-zinc-400">
+              {normalizedEntries.length} Entries
             </p>
+
           </div>
 
-          <div className="space-y-4">
-            {entries.length ===
-            0 ? (
-              <p className="text-zinc-500">
-                No entries yet.
-              </p>
+                    <div className="space-y-4">
+            {normalizedEntries.length === 0 ? (
+              <p className="text-zinc-500">No entries yet.</p>
             ) : (
-              entries.map(
-                (entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-center justify-between border border-zinc-800 rounded-2xl p-4 bg-black/40"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-semibold text-white">
-                        {
-                          entry.title
-                        }
-                      </p>
+              normalizedEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between border border-zinc-800 rounded-2xl p-4 bg-black/40"
+                >
+                  <div className="space-y-1">
+                    <p className="font-semibold text-white">{entry.title}</p>
 
-                      <p className="text-sm text-zinc-400">
-                        {
-                          entry.category
-                        }
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="font-bold text-lg text-white">
-                        ₦
-                        {entry.amount.toLocaleString()}
-                      </p>
-
-                      <p className="text-xs text-zinc-500">
-                        {entry.type.replaceAll(
-                          "_",
-                          " "
-                        )}
-                      </p>
-                    </div>
+                    <p className="text-sm text-zinc-400">{entry.categoryName}</p>
                   </div>
-                )
-              )
+
+                  <div className="text-right">
+                    <p className="font-bold text-lg text-white">
+                      ₦{entry.amount.toLocaleString()}
+                    </p>
+
+                    <p className="text-xs text-zinc-500">
+                      {entry.type.replaceAll("_", " ")}
+                    </p>
+                  </div>
+                </div>
+              ))
             )}
           </div>
+
         </div>
       </div>
     </main>

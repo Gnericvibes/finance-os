@@ -1,32 +1,74 @@
-interface Entry {
-  amount: number;
+import { EntryType } from "@prisma/client";
 
-  category: string;
-
-  createdAt: Date;
-
+export interface EntryData {
+  id: string;
+  type: EntryType;
   title: string;
+  amount: number;
+  category: string;
+  createdAt: Date;
+}
+
+interface InsightInput {
+  entries: EntryData[];
+
+  currentTotal: number;
+  previousTotal: number;
+
+  financialHealthScore?: number;
+  blueprintMode?: string;
+  savingsRate?: number;
+  debtToIncomeRatio?: number;
+  monthlyIncome?: number;
 }
 
 export class IntelligenceEngine {
   /*
    -----------------------------------
-   DETECT LARGE EXPENSES
+   SPENDING ENTRIES ONLY
    -----------------------------------
   */
 
-  static detectLargeExpenses(
-    entries: Entry[]
+  static getSpendingEntries(
+    entries: EntryData[]
   ) {
     return entries.filter(
       (entry) =>
-        entry.amount >= 100000
+        entry.type === "EXPENSE" ||
+        entry.type === "DEBT_PAYMENT"
     );
   }
 
   /*
    -----------------------------------
-   DETECT SPENDING SPIKES
+   LARGE EXPENSES
+   -----------------------------------
+  */
+
+  static detectLargeExpenses(
+    entries: EntryData[],
+    monthlyIncome?: number
+  ) {
+    const spendingEntries =
+      this.getSpendingEntries(entries);
+
+    if (!monthlyIncome) {
+      return spendingEntries.filter(
+        (entry) =>
+          entry.amount >= 100000
+      );
+    }
+
+    return spendingEntries.filter(
+      (entry) =>
+        entry.amount >=
+        monthlyIncome * 0.2
+    );
+  }
+
+  /*
+   -----------------------------------
+   SPENDING SPIKE
    -----------------------------------
   */
 
@@ -34,42 +76,56 @@ export class IntelligenceEngine {
     current: number,
     previous: number
   ) {
-    if (previous === 0)
-      return false;
+    if (previous <= 0) {
+      return {
+        detected: false,
+        percentage: 0,
+      };
+    }
 
-    const increase =
+    const percentage =
       ((current - previous) /
         previous) *
       100;
 
-    return increase >= 40;
+    return {
+      detected: percentage >= 40,
+      percentage: Number(
+        percentage.toFixed(1)
+      ),
+    };
   }
 
   /*
    -----------------------------------
-   TOP CATEGORY
+   TOP SPENDING CATEGORY
    -----------------------------------
   */
 
   static getTopCategory(
-    entries: Entry[]
+    entries: EntryData[]
   ) {
+    const spendingEntries =
+      this.getSpendingEntries(entries);
+
     const map = new Map<
       string,
       number
     >();
 
-    entries.forEach((entry) => {
-      const current =
-        map.get(
-          entry.category
-        ) || 0;
+    spendingEntries.forEach(
+      (entry) => {
+        const current =
+          map.get(
+            entry.category
+          ) || 0;
 
-      map.set(
-        entry.category,
-        current + entry.amount
-      );
-    });
+        map.set(
+          entry.category,
+          current + entry.amount
+        );
+      }
+    );
 
     let topCategory =
       "Unknown";
@@ -103,38 +159,96 @@ export class IntelligenceEngine {
 
   /*
    -----------------------------------
-   DETECT RECURRING
+   RECURRING PAYMENTS
    -----------------------------------
   */
 
   static detectRecurringPayments(
-    entries: Entry[]
+    entries: EntryData[]
   ) {
+    const spendingEntries =
+      this.getSpendingEntries(entries);
+
     const map = new Map<
       string,
       number
     >();
 
-    entries.forEach((entry) => {
-      const current =
-        map.get(
+    spendingEntries.forEach(
+      (entry) => {
+        const normalized =
           entry.title
-        ) || 0;
+            .trim()
+            .toLowerCase();
 
-      map.set(
-        entry.title,
-        current + 1
-      );
-    });
+        const current =
+          map.get(
+            normalized
+          ) || 0;
+
+        map.set(
+          normalized,
+          current + 1
+        );
+      }
+    );
 
     return Array.from(
       map.entries()
     )
-      .filter(
-        ([_, count]) =>
-          count >= 3
-      )
+      .filter(([, count]) => count >= 3)
+
       .map(([title]) => title);
+  }
+
+  /*
+   -----------------------------------
+   CATEGORY RISK
+   -----------------------------------
+  */
+
+  static getCategoryRisk(
+    entries: EntryData[]
+  ) {
+    const topCategory =
+      this.getTopCategory(
+        entries
+      );
+
+    const spendingTotal =
+      this.getSpendingEntries(
+        entries
+      ).reduce(
+        (
+          total,
+          entry
+        ) =>
+          total +
+          entry.amount,
+        0
+      );
+
+    if (
+      spendingTotal <= 0
+    ) {
+      return null;
+    }
+
+    const percentage =
+      (
+        (topCategory.amount /
+          spendingTotal) *
+        100
+      ).toFixed(1);
+
+    return {
+      category:
+        topCategory.category,
+      percentage:
+        Number(
+          percentage
+        ),
+    };
   }
 
   /*
@@ -147,19 +261,18 @@ export class IntelligenceEngine {
     entries,
     currentTotal,
     previousTotal,
-  }: {
-    entries: Entry[];
-
-    currentTotal: number;
-
-    previousTotal: number;
-  }) {
+    financialHealthScore,
+    blueprintMode,
+    savingsRate,
+    debtToIncomeRatio,
+    monthlyIncome,
+  }: InsightInput) {
     const insights: string[] =
       [];
 
     /*
      -----------------------------------
-     SPIKE DETECTION
+     SPENDING SPIKE
      -----------------------------------
     */
 
@@ -169,9 +282,11 @@ export class IntelligenceEngine {
         previousTotal
       );
 
-    if (spike) {
+    if (
+      spike.detected
+    ) {
       insights.push(
-        "Spending increased significantly compared to the previous period."
+        `Spending increased by ${spike.percentage}% compared with the previous period.`
       );
     }
 
@@ -187,8 +302,28 @@ export class IntelligenceEngine {
       );
 
     insights.push(
-      `${topCategory.category} is currently the highest spending category.`
+      `${topCategory.category} is currently your largest spending category.`
     );
+
+    /*
+     -----------------------------------
+     CATEGORY CONCENTRATION
+     -----------------------------------
+    */
+
+    const risk =
+      this.getCategoryRisk(
+        entries
+      );
+
+    if (
+      risk &&
+      risk.percentage >= 40
+    ) {
+      insights.push(
+        `${risk.percentage}% of your spending is concentrated in ${risk.category}.`
+      );
+    }
 
     /*
      -----------------------------------
@@ -198,20 +333,21 @@ export class IntelligenceEngine {
 
     const largeExpenses =
       this.detectLargeExpenses(
-        entries
+        entries,
+        monthlyIncome
       );
 
     if (
       largeExpenses.length > 0
     ) {
       insights.push(
-        `${largeExpenses.length} unusually large transactions detected.`
+        `${largeExpenses.length} unusually large transactions were detected.`
       );
     }
 
     /*
      -----------------------------------
-     RECURRING
+     RECURRING PAYMENTS
      -----------------------------------
     */
 
@@ -227,6 +363,66 @@ export class IntelligenceEngine {
         `Recurring payments detected: ${recurring.join(
           ", "
         )}.`
+      );
+    }
+
+    /*
+     -----------------------------------
+     PFOS INSIGHTS
+     -----------------------------------
+    */
+
+    if (
+      blueprintMode
+    ) {
+      insights.push(
+        `You are currently operating in ${blueprintMode} mode.`
+      );
+    }
+
+    if (
+      financialHealthScore !==
+      undefined
+    ) {
+      if (
+        financialHealthScore >=
+        80
+      ) {
+        insights.push(
+          "Financial health is strong and supports long-term wealth building."
+        );
+      } else if (
+        financialHealthScore >=
+        60
+      ) {
+        insights.push(
+          "Financial health is stable but still has room for improvement."
+        );
+      } else {
+        insights.push(
+          "Financial health requires attention to improve long-term resilience."
+        );
+      }
+    }
+
+    if (
+      savingsRate !==
+        undefined &&
+      savingsRate < 10
+    ) {
+      insights.push(
+        "Savings rate is currently below recommended levels."
+      );
+    }
+
+    if (
+      debtToIncomeRatio !==
+        undefined &&
+      debtToIncomeRatio >
+        35
+    ) {
+      insights.push(
+        "Debt burden is relatively high compared to income."
       );
     }
 

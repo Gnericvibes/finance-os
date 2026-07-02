@@ -6,6 +6,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+type AIContext = Awaited<ReturnType<typeof FinancialContext.build>>;
+
+
 export class AIOrchestrator {
   /*
    -----------------------------------
@@ -116,15 +119,11 @@ ${JSON.stringify(context, null, 2)}
    -----------------------------------
   */
 
-  static fallbackResponse(
-    context: any
-  ) {
-    const overBudget =
-      context.budgets.filter(
-        (budget: any) =>
-          budget.status ===
-          "OVER_BUDGET"
-      );
+    static fallbackResponse(context: AIContext) {
+    const overBudget = context.budgets.filter(
+      (budget) => budget.status === "OVER_BUDGET"
+    );
+
 
     if (overBudget.length > 0) {
       return `

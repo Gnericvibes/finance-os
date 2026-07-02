@@ -1,14 +1,11 @@
-interface EntryData {
+import { EntryType } from "@prisma/client";
+
+export interface EntryData {
   id: string;
-
-  type: string;
-
+  type: EntryType;
   title: string;
-
   amount: number;
-
   category: string;
-
   createdAt: Date;
 }
 
@@ -21,11 +18,10 @@ export class AnalyticsEngine {
 
   static filterByType(
     entries: EntryData[],
-    type: string
+    type: EntryType
   ) {
     return entries.filter(
-      (entry) =>
-        entry.type === type
+      (entry) => entry.type === type
     );
   }
 
@@ -94,13 +90,14 @@ export class AnalyticsEngine {
     >();
 
     entries.forEach((entry) => {
-      const date =
-        new Date(
-          entry.createdAt
-        );
+      const date = new Date(
+        entry.createdAt
+      );
 
       const month =
-        `${date.getFullYear()}-${date.getMonth() + 1}`;
+        `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
 
       const current =
         map.get(month) || 0;
@@ -113,10 +110,14 @@ export class AnalyticsEngine {
 
     return Array.from(
       map.entries()
-    ).map(([month, total]) => ({
-      month,
-      total,
-    }));
+    )
+      .sort(([a], [b]) =>
+        a.localeCompare(b)
+      )
+      .map(([month, total]) => ({
+        month,
+        total,
+      }));
   }
 
   /*
@@ -149,9 +150,11 @@ export class AnalyticsEngine {
       return 0;
     }
 
-    return Math.round(
-      this.getTotal(entries) /
+    return Number(
+      (
+        this.getTotal(entries) /
         entries.length
+      ).toFixed(2)
     );
   }
 }

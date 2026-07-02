@@ -9,6 +9,9 @@ import { ParserEngine } from "@/features/chat/services/parser-engine";
 
 import { BudgetEngine } from "@/features/budgets/services/budget-engine";
 
+import { PFOSEngine } from "@/features/pfos/services/pfos-engine";
+
+
 /*
  -----------------------------------
  SEND MESSAGE
@@ -88,27 +91,17 @@ export async function sendMessage(
    -----------------------------------
   */
 
-  if (
-    parsed.entries.length > 0
-  ) {
-    await db.entry.createMany({
-      data: parsed.entries.map(
-        (entry) => ({
-          type: entry.type,
-
-          title: entry.title,
-
-          amount: entry.amount,
-
-          category:
-            entry.category,
-
-          userId:
-            session.user.id,
+    if (parsed.entries.length > 0) {
+    await Promise.all(
+      parsed.entries.map((entry) =>
+        PFOSEngine.createEntry({
+          ...entry,
+          userId: session.user.id,
         })
-      ),
-    });
+      )
+    );
   }
+
 
   /*
    -----------------------------------
@@ -116,30 +109,128 @@ export async function sendMessage(
    -----------------------------------
   */
 
-  if (
-    parsed.profileUpdates
-  ) {
-    await db.profile.update({
+    const isMaritalStatus = (
+    value: unknown
+  ): value is "SINGLE" | "MARRIED" | "DIVORCED" | "WIDOWED" => {
+    return (
+      value === "SINGLE" ||
+      value === "MARRIED" ||
+      value === "DIVORCED" ||
+      value === "WIDOWED"
+    );
+  };
+
+    const shouldRecomputeBlueprint =
+    parsed.profileUpdates !== null &&
+    (parsed.profileUpdates.dependents !== undefined ||
+      isMaritalStatus(parsed.profileUpdates.maritalStatus));
+
+  if (parsed.profileUpdates) {
+    await db.financialProfile.updateMany({
       where: {
-        userId:
-          session.user.id,
+        userId: session.user.id,
       },
 
       data: {
-        ...(parsed
-          .profileUpdates
-          .dependents !==
-        undefined
+        ...(parsed.profileUpdates.dependents !== undefined
           ? {
-              dependents:
-                parsed
-                  .profileUpdates
-                  .dependents,
+              hasDependents: parsed.profileUpdates.dependents > 0,
+              dependentsCount: parsed.profileUpdates.dependents,
+            }
+          : {}),
+
+        ...(isMaritalStatus(parsed.profileUpdates.maritalStatus)
+          ? {
+              maritalStatus: parsed.profileUpdates.maritalStatus,
             }
           : {}),
       },
     });
   }
+
+  // Profile changes affect PFOS allocations: generate a new versioned blueprint.
+  if (shouldRecomputeBlueprint) {
+    const latestProfile = await db.financialProfile.findUnique({
+      where: {
+        userId: session.user.id,
+      },
+    });
+
+    if (latestProfile) {
+      const expenseProfile = await db.householdExpenseProfile.findUnique({
+        where: {
+          userId: session.user.id,
+        },
+      });
+
+      const generated = PFOSEngine.generateBlueprint({
+        monthlyIncome: Number(latestProfile.monthlyIncome),
+
+        totalDebt: Number(latestProfile.totalDebt ?? 0),
+        repaymentAmount: Number(latestProfile.repaymentAmount ?? 0),
+
+        rentHousing: Number(expenseProfile?.rentHousing ?? 0),
+        food: Number(expenseProfile?.food ?? 0),
+        transport: Number(expenseProfile?.transport ?? 0),
+        utilities: Number(expenseProfile?.utilities ?? 0),
+        schoolFees: Number(expenseProfile?.schoolFees ?? 0),
+        subscriptions: Number(expenseProfile?.subscriptions ?? 0),
+        healthCare: Number(expenseProfile?.healthCare ?? 0),
+        miscellaneousExpenses: Number(expenseProfile?.miscellaneousExpenses ?? 0),
+
+        dependentsCount: latestProfile.dependentsCount,
+      });
+
+      await db.$transaction(async (tx) => {
+        await tx.financialBlueprint.updateMany({
+          where: {
+            userId: session.user.id,
+            isActive: true,
+          },
+          data: {
+            isActive: false,
+          },
+        });
+
+        const latestBlueprint = await tx.financialBlueprint.findFirst({
+          where: {
+            userId: session.user.id,
+          },
+          orderBy: {
+            version: "desc",
+          },
+        });
+
+        const nextVersion = (latestBlueprint?.version ?? 0) + 1;
+
+        await tx.financialBlueprint.create({
+          data: {
+            userId: session.user.id,
+            version: nextVersion,
+            isActive: true,
+
+            operationalAllocation: generated.operationalAllocation,
+            debtAllocation: generated.debtAllocation,
+            investmentAllocation: generated.investmentAllocation,
+            emergencyAllocation: generated.emergencyAllocation,
+
+            operationalPercentage: generated.operationalPercentage,
+            debtPercentage: generated.debtPercentage,
+            investmentPercentage: generated.investmentPercentage,
+            emergencyPercentage: generated.emergencyPercentage,
+
+            financialHealthScore: generated.financialHealthScore,
+            blueprintMode: generated.blueprintMode,
+            isDebtFree: generated.isDebtFree,
+
+            interpretation: `Recomputed after profile update (${generated.blueprintMode})`,
+          },
+        });
+      });
+    }
+  }
+
+
 
   /*
    -----------------------------------
@@ -156,23 +247,33 @@ export async function sendMessage(
    -----------------------------------
   */
 
-  const profile =
-    await db.profile.findUnique({
+    const profile =
+    await db.financialProfile.findUnique({
       where: {
-        userId:
-          session.user.id,
+        userId: session.user.id,
       },
     });
 
-  const blueprint =
-    await db.pFOSBlueprint.findUnique(
-      {
-        where: {
-          userId:
-            session.user.id,
-        },
+    const blueprint = await db.financialBlueprint.findFirst({
+    where: {
+      userId: session.user.id,
+      isActive: true,
+    },
+    orderBy: {
+      version: "desc",
+    },
+  });
+
+
+  const blueprintData = blueprint
+    ? {
+        operationalPercentage: blueprint.operationalPercentage,
+        debtPercentage: blueprint.debtPercentage,
+        emergencyPercentage: blueprint.emergencyPercentage,
+        investmentPercentage: blueprint.investmentPercentage,
       }
-    );
+    : undefined;
+
 
   /*
    -----------------------------------
@@ -195,9 +296,14 @@ export async function sendMessage(
           now.getFullYear(),
       },
 
-      include: {
-        categories: true,
+            include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
       },
+
     });
 
   /*
@@ -206,13 +312,22 @@ export async function sendMessage(
    -----------------------------------
   */
 
-  const allEntries =
+    const allEntries =
     await db.entry.findMany({
       where: {
-        userId:
-          session.user.id,
+        userId: session.user.id,
+      },
+      include: {
+        category: true,
       },
     });
+
+  const allEntryData = allEntries.map((entry) => ({
+    type: entry.type,
+    amount: Number(entry.amount),
+    category: entry.category?.name ?? "Uncategorized",
+  }));
+
 
   /*
    -----------------------------------
@@ -258,11 +373,15 @@ export async function sendMessage(
     if (
       activeBudget
     ) {
-      const budgetAnalysis =
-        BudgetEngine.analyzeBudget(
-          activeBudget.categories,
-          allEntries
-        );
+            const budgetAnalysis = BudgetEngine.analyzeBudget(
+        activeBudget.categories.map((category) => ({
+          category: category.category.name,
+          limitAmount: Number(category.limitAmount),
+        })),
+        allEntryData,
+        blueprintData
+      );
+
 
       const warnings =
         budgetAnalysis.filter(
@@ -309,27 +428,15 @@ export async function sendMessage(
       blueprint &&
       profile
     ) {
-      const totalExpenses =
-        allEntries
-          .filter(
-            (entry) =>
-              entry.type ===
-              "EXPENSE"
-          )
-          .reduce(
-            (
-              acc,
-              entry
-            ) =>
-              acc +
-              entry.amount,
-            0
-          );
+            const totalExpenses = allEntryData
+        .filter((entry) => entry.type === "EXPENSE")
+        .reduce((acc, entry) => acc + entry.amount, 0);
+
+      const monthlyIncome = Number(profile.monthlyIncome);
 
       const lifestyleLimit =
-        (profile.monthlyIncome *
-          blueprint.lifestyleAllocation) /
-        100;
+        (monthlyIncome * blueprint.operationalPercentage) / 100;
+
 
       if (
         totalExpenses >
@@ -345,22 +452,10 @@ export async function sendMessage(
        -----------------------------------
       */
 
-      const income =
-        allEntries
-          .filter(
-            (entry) =>
-              entry.type ===
-              "INCOME"
-          )
-          .reduce(
-            (
-              acc,
-              entry
-            ) =>
-              acc +
-              entry.amount,
-            0
-          );
+            const income = allEntryData
+        .filter((entry) => entry.type === "INCOME")
+        .reduce((acc, entry) => acc + entry.amount, 0);
+
 
       const cashflow =
         income -
@@ -379,13 +474,16 @@ export async function sendMessage(
        -----------------------------------
       */
 
-      if (
-        blueprint.savingsRate <
-        20
-      ) {
+            const savingsRate =
+        income === 0
+          ? 0
+          : Math.round(((income - totalExpenses) / income) * 100);
+
+      if (savingsRate < 20) {
         assistantResponse +=
           " Savings rate is below optimal PFOS target. Increase savings allocation gradually.";
       }
+
     }
 
     /*
@@ -394,12 +492,10 @@ export async function sendMessage(
      -----------------------------------
     */
 
-    const shoppingEntries =
-      parsed.entries.filter(
-        (entry) =>
-          entry.category ===
-          "shopping"
-      );
+        const shoppingEntries = parsed.entries.filter(
+      (entry) => entry.category.toLowerCase() === "shopping"
+    );
+
 
     if (
       shoppingEntries.length >

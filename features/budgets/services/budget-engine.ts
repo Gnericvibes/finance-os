@@ -13,16 +13,15 @@ interface EntryData {
 }
 
 interface PFOSData {
-  survivalAllocation: number;
+  operationalPercentage: number;
 
-  debtAllocation: number;
+  debtPercentage: number;
 
-  emergencyAllocation: number;
+  emergencyPercentage: number;
 
-  investmentAllocation: number;
-
-  lifestyleAllocation: number;
+  investmentPercentage: number;
 }
+
 
 export class BudgetEngine {
   /*
@@ -218,7 +217,7 @@ export class BudgetEngine {
    -----------------------------------
   */
 
-  static compareWithPFOS(
+    static compareWithPFOS(
     percentage: number,
     bucket: string,
     blueprint: PFOSData
@@ -227,41 +226,30 @@ export class BudgetEngine {
 
     switch (bucket) {
       case "SURVIVAL":
-        allocation =
-          blueprint.survivalAllocation;
+      case "LIFESTYLE":
+        allocation = blueprint.operationalPercentage;
         break;
 
       case "DEBT":
-        allocation =
-          blueprint.debtAllocation;
+        allocation = blueprint.debtPercentage;
         break;
 
       case "EMERGENCY":
-        allocation =
-          blueprint.emergencyAllocation;
+        allocation = blueprint.emergencyPercentage;
         break;
 
       case "INVESTMENT":
-        allocation =
-          blueprint.investmentAllocation;
-        break;
-
-      case "LIFESTYLE":
-        allocation =
-          blueprint.lifestyleAllocation;
+        allocation = blueprint.investmentPercentage;
         break;
     }
 
     return {
       bucket,
-
-      recommendedAllocation:
-        allocation,
-
-      exceedsPFOS:
-        percentage > allocation,
+      recommendedAllocation: allocation,
+      exceedsPFOS: percentage > allocation,
     };
   }
+
 
   /*
    -----------------------------------

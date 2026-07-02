@@ -1,148 +1,425 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import {
-  generatePFOS,
-} from "@/lib/pfos-engine";
+import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/current-user";
+import { ensureMonthlySnapshot } from "@/lib/ensure-monthly-snapshot";
 
-import { useState } from "react";
 
-export default function AllocationsPage() {
-  const [userName] =
-    useState("John"); // later from auth
+export default async function AllocationsPage() {
+  const user =
+    await getCurrentUser();
 
-  const baseIncome = 4000;
+    if (!user) {
+    redirect("/sign-in");
+  }
 
-  const extraIncome = 500; // bonus/raise display only
+  await ensureMonthlySnapshot(user.id);
 
-  const pfos =
-    generatePFOS({
-      income: baseIncome,
-      hasDebt: true,
-      totalDebt: 6000,
+
+  /*
+    LOAD PROFILE
+  */
+
+  const profile =
+    await db.financialProfile.findUnique({
+      where: {
+        userId: user.id,
+      },
     });
 
+  /*
+    LOAD BLUEPRINT
+  */
+
+    const blueprint = await db.financialBlueprint.findFirst({
+    where: {
+      userId: user.id,
+      isActive: true,
+    },
+    orderBy: {
+      version: "desc",
+    },
+  });
+
+
+  /*
+    IF NO ONBOARDING
+  */
+
+  if (
+    !profile ||
+    !blueprint
+  ) {
+    redirect("/onboarding");
+  }
+
+  /*
+    SAFE VALUES
+  */
+
+  const userName =
+    user.name || "User";
+
+  const baseIncome =
+    Number(
+      profile.monthlyIncome || 0
+    );
+
+  const additionalIncome =
+    Number(
+      profile.additionalIncome || 0
+    );
+
+  const hasDebt =
+    profile.hasDebt;
+
+  
+
   const health =
-    pfos.financialHealthScore;
+    Number(
+      blueprint.financialHealthScore || 0
+    );
 
   return (
-    <main className="space-y-10">
+    <main className="space-y-8">
 
       {/* HEADER */}
 
-      <div>
+      <section>
         <h1 className="text-4xl font-bold text-white">
           {userName} Blueprint
         </h1>
 
         <p className="mt-2 text-zinc-400">
-          Your personalized financial intelligence system
+          Your personal financial operating system
         </p>
-      </div>
+      </section>
 
-      {/* INCOME INTELLIGENCE */}
+      {/* INCOME */}
 
-      <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6 space-y-3">
+      <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
 
         <h2 className="text-xl font-semibold text-white">
           Income Snapshot
         </h2>
 
-        <div className="text-white text-3xl font-bold">
-          ${baseIncome.toLocaleString()}
+        <div className="mt-4 text-4xl font-bold text-white">
+          $
+          {baseIncome.toLocaleString()}
         </div>
 
-        <p className="text-zinc-400 text-sm">
-          Base monthly income (used for PFOS calculations)
+        <p className="mt-2 text-sm text-zinc-400">
+          Monthly income used for PFOS calculations
         </p>
 
-        {extraIncome > 0 && (
-          <div className="mt-4 rounded-xl bg-green-500/10 border border-green-500/30 p-4">
-            <p className="text-green-400 font-semibold">
-              +${extraIncome} additional income detected this month
+        {additionalIncome > 0 && (
+          <div className="mt-4 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
+
+            <p className="font-medium text-green-400">
+              +$
+              {additionalIncome.toLocaleString()}{" "}
+              additional income recorded
             </p>
 
-            <p className="text-zinc-400 text-sm mt-1">
-              This is shown for awareness only and does NOT affect PFOS baseline calculations until next update.
+            <p className="mt-1 text-sm text-zinc-400">
+              Additional income is tracked separately and does not change your PFOS baseline until your income profile is updated.
             </p>
+
           </div>
         )}
+
       </section>
 
-      {/* FINANCIAL HEALTH VISUAL */}
-
-      <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6 space-y-4">
-
-        <h2 className="text-xl font-semibold text-white">
-          Financial Health Score
-        </h2>
-
-        <div className="flex items-end gap-3 h-32">
-
-          {/* BAR */}
-          <div
-            className="w-16 bg-gradient-to-t from-green-500 to-emerald-300 rounded-xl"
-            style={{
-              height: `${health}%`,
-            }}
-          />
-
-          <div className="text-5xl font-bold text-white">
-            {health}/100
-          </div>
-
-        </div>
-
-        <p className="text-zinc-400">
-          Based on debt load, allocation balance, and financial stability signals
-        </p>
-      </section>
-
-      {/* ALLOCATION TABLE */}
+      {/* FINANCIAL HEALTH */}
 
       <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
 
-        <h2 className="text-xl font-semibold text-white mb-6">
-          Allocation Breakdown
+        <h2 className="text-xl font-semibold text-white">
+          Financial Health
         </h2>
 
-        <table className="w-full text-left">
+        <div className="mt-6 flex items-center gap-6">
+
+          <div className="h-40 w-8 overflow-hidden rounded-full bg-zinc-800">
+
+            <div
+              className="w-full bg-green-500"
+              style={{
+                height: `${health}%`,
+              }}
+            />
+
+          </div>
+
+          <div>
+
+            <div className="text-5xl font-bold text-white">
+              {health}
+            </div>
+
+            <div className="text-zinc-400">
+              out of 100
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* PFOS STRUCTURE */}
+
+      <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+
+        <h2 className="mb-6 text-xl font-semibold text-white">
+          PFOS Structure
+        </h2>
+
+        <table className="w-full">
 
           <thead>
-            <tr className="text-zinc-400 border-b border-zinc-800">
-              <th className="pb-3">Category</th>
-              <th className="pb-3">%</th>
-              <th className="pb-3">Amount</th>
+
+            <tr className="border-b border-zinc-800 text-zinc-400">
+
+              <th className="pb-3 text-left">
+                Category
+              </th>
+
+              <th className="pb-3 text-left">
+                Suggested Range
+              </th>
+
+              <th className="pb-3 text-left">
+                Purpose
+              </th>
+
             </tr>
+
           </thead>
 
           <tbody className="text-white">
 
             <tr className="border-b border-zinc-900">
-              <td className="py-4">Operations</td>
-              <td>{pfos.percentages.operations}%</td>
-              <td>${pfos.allocations.operations.toFixed(2)}</td>
+
+              <td className="py-4">
+                Operations
+              </td>
+
+              <td>
+                70%
+              </td>
+
+              <td>
+                Living expenses and lifestyle
+              </td>
+
             </tr>
 
             <tr className="border-b border-zinc-900">
-              <td className="py-4">Debt</td>
-              <td>{pfos.percentages.debt}%</td>
-              <td>${pfos.allocations.debt.toFixed(2)}</td>
-            </tr>
 
-            <tr className="border-b border-zinc-900">
-              <td className="py-4">Investing</td>
-              <td>{pfos.percentages.investing}%</td>
-              <td>${pfos.allocations.investing.toFixed(2)}</td>
+              <td className="py-4">
+                Debt Elimination
+              </td>
+
+              <td>
+                20%
+              </td>
+
+              <td>
+                Remove financial drag
+              </td>
+
             </tr>
 
             <tr>
-              <td className="py-4">Emergency</td>
-              <td>{pfos.percentages.emergency}%</td>
-              <td>${pfos.allocations.emergency.toFixed(2)}</td>
+
+              <td className="py-4">
+                Investing
+              </td>
+
+              <td>
+                10%
+              </td>
+
+              <td>
+                Pay yourself first
+              </td>
+
             </tr>
 
           </tbody>
+
         </table>
+
+      </section>
+
+      {/* LIVE ALLOCATIONS */}
+
+      <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+
+        <h2 className="mb-6 text-xl font-semibold text-white">
+          Allocation Breakdown
+        </h2>
+
+        <table className="w-full">
+
+          <thead>
+
+            <tr className="border-b border-zinc-800 text-zinc-400">
+
+              <th className="pb-3 text-left">
+                Category
+              </th>
+
+              <th className="pb-3 text-left">
+                %
+              </th>
+
+              <th className="pb-3 text-left">
+                Amount
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <tbody className="text-white">
+
+            <tr className="border-b border-zinc-900">
+
+              <td className="py-4">
+                Operations
+              </td>
+
+              <td>
+                70%
+              </td>
+
+              <td>
+                $
+                {Number(
+                  blueprint.operationalAllocation
+                ).toLocaleString()}
+              </td>
+
+            </tr>
+
+            <tr className="border-b border-zinc-900">
+
+              <td className="py-4">
+                Debt
+              </td>
+
+              <td>
+                {hasDebt ? "20%" : "0%"}
+              </td>
+
+              <td>
+                $
+                {Number(
+                  blueprint.debtAllocation
+                ).toLocaleString()}
+              </td>
+
+            </tr>
+
+            <tr className="border-b border-zinc-900">
+
+              <td className="py-4">
+                Investing
+              </td>
+
+              <td>
+                10%
+              </td>
+
+              <td>
+                $
+                {Number(
+                  blueprint.investmentAllocation
+                ).toLocaleString()}
+              </td>
+
+            </tr>
+
+            <tr>
+
+              <td className="py-4">
+                Emergency Reserve
+              </td>
+
+              <td>
+                5%
+              </td>
+
+              <td>
+                $
+                {Number(
+                  blueprint.emergencyAllocation
+                ).toLocaleString()}
+              </td>
+
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </section>
+
+      {/* INSIGHTS */}
+
+      <section className="grid gap-4 md:grid-cols-3">
+
+        <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+
+          <h3 className="font-semibold text-white">
+            Emergency Reserve
+          </h3>
+
+          <p className="mt-3 text-2xl font-bold text-white">
+
+            $
+            {Number(
+              blueprint.emergencyAllocation
+            ).toLocaleString()}
+
+          </p>
+
+        </div>
+
+        <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+
+          <h3 className="font-semibold text-white">
+            Debt Priority
+          </h3>
+
+          <p className="mt-3 text-2xl font-bold text-white">
+
+            {hasDebt
+              ? "High"
+              : "Cleared"}
+
+          </p>
+
+        </div>
+
+        <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+
+          <h3 className="font-semibold text-white">
+            Investment Readiness
+          </h3>
+
+          <p className="mt-3 text-2xl font-bold text-white">
+
+            {health >= 70
+              ? "Ready"
+              : "Building"}
+
+          </p>
+
+        </div>
+
       </section>
 
     </main>

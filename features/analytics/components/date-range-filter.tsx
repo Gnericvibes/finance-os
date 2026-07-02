@@ -5,13 +5,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface Props {
-  currentRange?: string;
-
   currentType: string;
 }
 
 export function DateRangeFilter({
-  currentRange,
   currentType,
 }: Props) {
   /*

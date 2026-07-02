@@ -162,28 +162,27 @@ export default async function AnalyticsPage({
    -----------------------------------
   */
 
-  const entries =
-    await db.entry.findMany({
-      where: {
-        userId:
-          session.user.id,
+    const entries = await db.entry.findMany({
+    where: {
+      userId: session.user.id,
 
-        type: entryType,
+      type: entryType,
 
-        createdAt: {
-          gte:
-            dateRange.start,
-
-          lte:
-            dateRange.end,
-        },
+      createdAt: {
+        gte: dateRange.start,
+        lte: dateRange.end,
       },
+    },
 
-      orderBy: {
-        createdAt:
-          "desc",
-      },
-    });
+    include: {
+      category: true,
+    },
+
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
 
   /*
    -----------------------------------
@@ -191,23 +190,36 @@ export default async function AnalyticsPage({
    -----------------------------------
   */
 
-  const previousEntries =
-    await db.entry.findMany({
-      where: {
-        userId:
-          session.user.id,
+    const previousEntries = await db.entry.findMany({
+    where: {
+      userId: session.user.id,
 
-        type: entryType,
+      type: entryType,
 
-        createdAt: {
-          gte:
-            previousStart,
-
-          lte:
-            previousEnd,
-        },
+      createdAt: {
+        gte: previousStart,
+        lte: previousEnd,
       },
-    });
+    },
+
+    include: {
+      category: true,
+    },
+  });
+
+  const normalizedEntries = entries.map((entry) => ({
+    id: entry.id,
+    title: entry.title,
+    category: entry.category?.name ?? "Uncategorized",
+    amount: Number(entry.amount),
+    createdAt: entry.createdAt,
+  }));
+
+  const normalizedPreviousEntries = previousEntries.map((entry) => ({
+    amount: Number(entry.amount),
+    createdAt: entry.createdAt,
+  }));
+
 
   /*
    -----------------------------------
@@ -215,15 +227,12 @@ export default async function AnalyticsPage({
    -----------------------------------
   */
 
-  const currentTotal =
-    ComparativeEngine.getCurrentTotal(
-      entries
-    );
+    const currentTotal = ComparativeEngine.getCurrentTotal(normalizedEntries);
 
-  const previousTotal =
-    ComparativeEngine.getPreviousTotal(
-      previousEntries
-    );
+  const previousTotal = ComparativeEngine.getPreviousTotal(
+    normalizedPreviousEntries
+  );
+
 
   const percentageChange =
     ComparativeEngine.getPercentageChange(
@@ -242,12 +251,11 @@ export default async function AnalyticsPage({
    -----------------------------------
   */
 
-  const total =
-    entries.reduce(
-      (acc: any, entry: { amount: any; }) =>
-        acc + entry.amount,
-      0
-    );
+    const total = normalizedEntries.reduce(
+    (acc, entry) => acc + entry.amount,
+    0
+  );
+
 
   /*
    -----------------------------------
@@ -255,14 +263,10 @@ export default async function AnalyticsPage({
    -----------------------------------
   */
 
-  const categories = [
-    ...new Set(
-      entries.map(
-        (entry: { category: any; }) =>
-          entry.category
-      )
-    ),
+    const categories = [
+    ...new Set(normalizedEntries.map((entry) => entry.category)),
   ];
+
 
   /*
    -----------------------------------
@@ -393,10 +397,11 @@ export default async function AnalyticsPage({
 
         {/* ANALYTICS */}
 
-        <AnalyticsClient
-          entries={entries}
+                <AnalyticsClient
+          entries={normalizedEntries}
           type={type}
         />
+
       </div>
     </main>
   );

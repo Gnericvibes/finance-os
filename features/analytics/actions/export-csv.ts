@@ -72,18 +72,22 @@ export async function exportCsv(
    -----------------------------------
   */
 
-  const entries =
-    await db.entry.findMany({
-      where: {
-        userId: session.user.id,
+    const entries = await db.entry.findMany({
+    where: {
+      userId: session.user.id,
 
-        type: entryType,
-      },
+      type: entryType,
+    },
 
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    include: {
+      category: true,
+    },
+
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
 
   /*
    -----------------------------------
@@ -105,21 +109,18 @@ export async function exportCsv(
    -----------------------------------
   */
 
-  const rows = entries.map(
-    (entry) => [
-      entry.title,
+    const rows = entries.map((entry) => [
+    entry.title,
 
-      entry.category,
+    entry.category?.name ?? "Uncategorized",
 
-      entry.amount,
+    Number(entry.amount),
 
-      entry.type,
+    entry.type,
 
-      new Date(
-        entry.createdAt
-      ).toLocaleDateString(),
-    ]
-  );
+    new Date(entry.createdAt).toLocaleDateString(),
+  ]);
+
 
   /*
    -----------------------------------

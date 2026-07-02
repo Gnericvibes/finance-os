@@ -29,12 +29,26 @@ export default async function BudgetsPage() {
    -----------------------------------
   */
 
-  const blueprint =
-    await db.pFOSBlueprint.findUnique({
-      where: {
-        userId: session.user.id,
-      },
-    });
+      const blueprint = await db.financialBlueprint.findFirst({
+    where: {
+      userId: session.user.id,
+      isActive: true,
+    },
+    orderBy: {
+      version: "desc",
+    },
+  });
+
+
+  const blueprintData = blueprint
+    ? {
+        operationalPercentage: blueprint.operationalPercentage,
+        debtPercentage: blueprint.debtPercentage,
+        emergencyPercentage: blueprint.emergencyPercentage,
+        investmentPercentage: blueprint.investmentPercentage,
+      }
+    : undefined;
+
 
   /*
    -----------------------------------
@@ -48,9 +62,14 @@ export default async function BudgetsPage() {
         userId: session.user.id,
       },
 
-      include: {
-        categories: true,
+            include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
       },
+
 
       orderBy: {
         createdAt: "desc",
@@ -63,12 +82,22 @@ export default async function BudgetsPage() {
    -----------------------------------
   */
 
-  const entries =
+    const entries =
     await db.entry.findMany({
       where: {
         userId: session.user.id,
       },
+      include: {
+        category: true,
+      },
     });
+
+  const entryData = entries.map((entry) => ({
+    type: entry.type,
+    amount: Number(entry.amount),
+    category: entry.category?.name ?? "Uncategorized",
+  }));
+
 
   /*
    -----------------------------------
@@ -106,12 +135,15 @@ export default async function BudgetsPage() {
 
         <div className="space-y-8">
           {budgets.map((budget) => {
-            const analysis =
-              BudgetEngine.analyzeBudget(
-                budget.categories,
-                entries,
-                blueprint || undefined
-              );
+                        const analysis = BudgetEngine.analyzeBudget(
+              budget.categories.map((category) => ({
+                category: category.category.name,
+                limitAmount: Number(category.limitAmount),
+              })),
+              entryData,
+              blueprintData
+            );
+
 
             /*
              -----------------------------------

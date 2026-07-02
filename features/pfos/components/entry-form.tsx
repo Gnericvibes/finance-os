@@ -15,6 +15,14 @@ export function EntryForm() {
   const [category, setCategory] =
     useState("");
 
+  const [type, setType] = useState<
+    | "EXPENSE"
+    | "INCOME"
+    | "INVESTMENT"
+    | "DEBT_PAYMENT"
+    | "TRANSFER"
+  >("EXPENSE");
+
   const [loading, setLoading] =
     useState(false);
 
@@ -31,6 +39,7 @@ export function EntryForm() {
         description,
         amount: Number(amount),
         category,
+        type,
 
         // temporary hardcoded user
         userId: "demo-user",
@@ -45,6 +54,7 @@ export function EntryForm() {
       setDescription("");
       setAmount("");
       setCategory("");
+      setType("EXPENSE");
     } else {
       alert(result.error);
     }
@@ -55,6 +65,41 @@ export function EntryForm() {
       onSubmit={handleSubmit}
       className="space-y-4 max-w-md"
     >
+      <select
+        value={type}
+        onChange={(e) =>
+          setType(
+            e.target.value as
+              | "EXPENSE"
+              | "INCOME"
+              | "INVESTMENT"
+              | "DEBT_PAYMENT"
+              | "TRANSFER"
+          )
+        }
+        className="w-full border p-2 rounded"
+      >
+        <option value="EXPENSE">
+          Expense
+        </option>
+
+        <option value="INCOME">
+          Income
+        </option>
+
+        <option value="INVESTMENT">
+          Investment
+        </option>
+
+        <option value="DEBT_PAYMENT">
+          Debt Payment
+        </option>
+
+        <option value="TRANSFER">
+          Transfer
+        </option>
+      </select>
+
       <input
         type="text"
         placeholder="Title"

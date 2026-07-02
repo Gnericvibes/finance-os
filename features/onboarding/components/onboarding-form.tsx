@@ -1,15 +1,14 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 
 import {
   onboardingSchema,
   OnboardingFormValues,
 } from "../schemas/onboarding-schema";
-
-import { zodResolver } from "@hookform/resolvers/zod";
-
-import { useRouter } from "next/navigation";
 
 import { useOnboarding } from "../hooks/use-onboarding";
 
@@ -23,6 +22,9 @@ import { OnboardingHeader } from "./onboarding-header";
 import { OnboardingNavigation } from "./onboarding-navigation";
 import { OnboardingComplete } from "./onboarding-complete";
 
+import { saveOnboarding } from "@/features/onboarding/actions/save-onboarding";
+
+
 export function OnboardingForm() {
   const router = useRouter();
 
@@ -32,26 +34,38 @@ export function OnboardingForm() {
     previousStep,
   } = useOnboarding();
 
-  const form =
-    useForm<OnboardingFormValues>({
-      resolver:
-        zodResolver(
-          onboardingSchema
-        ),
+    const form = useForm<OnboardingFormValues>({
+    resolver: zodResolver(onboardingSchema) as unknown as Resolver<OnboardingFormValues>,
+
 
       defaultValues: {
+        /*
+         -----------------------------------
+         PERSONAL PROFILE
+         -----------------------------------
+        */
+
         fullName: "",
 
-        employmentType: "",
+        employmentType:
+          "EMPLOYED",
 
-        maritalStatus: "",
+        maritalStatus:
+          "SINGLE",
 
-        hasDependents: "false",
+        hasDependents:
+          "false",
 
         dependentsCount:
           undefined,
 
-        currency: "USD",
+        /*
+         -----------------------------------
+         INCOME
+         -----------------------------------
+        */
+
+        currency: "NGN",
 
         mainMonthlyIncome:
           undefined,
@@ -61,6 +75,12 @@ export function OnboardingForm() {
 
         incomeFrequency:
           "MONTHLY",
+
+        /*
+         -----------------------------------
+         EXPENSES
+         -----------------------------------
+        */
 
         rentHousing:
           undefined,
@@ -85,6 +105,12 @@ export function OnboardingForm() {
         miscellaneousExpenses:
           undefined,
 
+        /*
+         -----------------------------------
+         DEBT
+         -----------------------------------
+        */
+
         hasDebt: "false",
 
         totalDebt:
@@ -98,7 +124,14 @@ export function OnboardingForm() {
         repaymentAmount:
           undefined,
 
-        financialGoal: "",
+        /*
+         -----------------------------------
+         GOALS
+         -----------------------------------
+        */
+
+        financialGoal:
+          "EMERGENCY_FUND",
 
         emergencySavingsGoal:
           undefined,
@@ -118,23 +151,37 @@ export function OnboardingForm() {
     values: OnboardingFormValues
   ) {
     try {
-      localStorage.setItem(
-        "pfos-onboarding",
-        JSON.stringify(values)
-      );
+      const result =
+        await saveOnboarding(
+          values
+        );
+
+      if (
+        !result?.success
+      ) {
+        alert(
+          "Unable to generate blueprint."
+        );
+        return;
+      }
 
       router.push(
         "/allocations"
       );
     } catch (error) {
       console.error(error);
+
+      alert(
+        "Something went wrong."
+      );
     }
   }
 
   function handleNext() {
-    if (currentStep < 5) {
+    if (
+      currentStep < 5
+    ) {
       nextStep();
-
       return;
     }
 
@@ -144,11 +191,15 @@ export function OnboardingForm() {
   }
 
   function renderStep() {
-    switch (currentStep) {
+    switch (
+      currentStep
+    ) {
       case 1:
         return (
           <PersonalProfileStep
-            register={register}
+            register={
+              register
+            }
             watch={watch}
           />
         );
@@ -156,21 +207,27 @@ export function OnboardingForm() {
       case 2:
         return (
           <IncomeStep
-            register={register}
+            register={
+              register
+            }
           />
         );
 
       case 3:
         return (
           <ExpenseStep
-            register={register}
+            register={
+              register
+            }
           />
         );
 
       case 4:
         return (
           <DebtStep
-            register={register}
+            register={
+              register
+            }
             watch={watch}
           />
         );
@@ -178,15 +235,17 @@ export function OnboardingForm() {
       case 5:
         return (
           <GoalStep
-            register={register}
+            register={
+              register
+            }
           />
         );
 
       case 6:
         return (
           <OnboardingComplete
-            title="PFOS Blueprint Ready"
-            description="Your financial operating system has been generated successfully."
+            title="Blueprint Ready"
+            description="Your personalized financial operating system has been created."
           />
         );
 
@@ -197,32 +256,23 @@ export function OnboardingForm() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      {/* PAGE HEADER */}
-
       <div className="mb-10">
         <h1 className="text-4xl font-bold text-white">
-          Build Your Financial
-          OS
+          Build Your Financial OS
         </h1>
 
         <p className="mt-3 text-zinc-400">
-          Let’s understand
-          your finances and
-          generate your
-          personalized PFOS
-          blueprint.
+                    Let&apos;s understand your finances and
+
+          generate your personalized blueprint.
         </p>
       </div>
-
-      {/* CURRENT STEP HEADER */}
 
       <OnboardingHeader
         currentStep={
           currentStep
         }
       />
-
-      {/* FORM CONTAINER */}
 
       <form
         onSubmit={handleSubmit(
@@ -233,9 +283,8 @@ export function OnboardingForm() {
         {renderStep()}
       </form>
 
-      {/* NAVIGATION BUTTONS */}
-
-      {currentStep < 6 && (
+      {currentStep <
+        6 && (
         <div className="mt-8">
           <OnboardingNavigation
             currentStep={

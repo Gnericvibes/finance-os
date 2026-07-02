@@ -23,29 +23,34 @@ export function ExpenseStep({
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[
-          "Rent",
-          "Food",
-          "Transport",
-          "Utilities",
-          "Family support",
-          "Other expenses",
-        ].map((field) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {(
+          [
+            { name: "rentHousing", label: "Rent / Housing" },
+            { name: "food", label: "Food" },
+            { name: "transport", label: "Transport" },
+            { name: "utilities", label: "Utilities" },
+            { name: "schoolFees", label: "School Fees" },
+            { name: "subscriptions", label: "Subscriptions" },
+            { name: "healthCare", label: "Healthcare" },
+            {
+              name: "miscellaneousExpenses",
+              label: "Other Expenses",
+            },
+          ] as const
+        ).map(({ name, label }) => (
           <input
-            key={field}
+            key={name}
             type="number"
-            placeholder={field}
-            {...register(
-              field as any,
-              {
-                valueAsNumber: true,
-              }
-            )}
+            placeholder={label}
+            {...register(name, {
+              valueAsNumber: true,
+            })}
             className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800"
           />
         ))}
       </div>
+
     </div>
   );
 }
