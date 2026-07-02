@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/current-user";
 
 import { PFOSEngine } from "@/features/pfos/services/pfos-engine";
 
+import { retryTransaction } from "@/lib/retry-transaction";
+
 import {
   onboardingSchema,
   type OnboardingFormValues,
@@ -43,7 +45,7 @@ export async function saveOnboarding(data: OnboardingFormValues) {
     dependentsCount: Number(values.dependentsCount || 0),
   });
 
-    const { financialProfile, createdBlueprint } = await db.$transaction(
+        const { financialProfile, createdBlueprint } = await retryTransaction(
     async (tx) => {
       /*
        -----------------------------------

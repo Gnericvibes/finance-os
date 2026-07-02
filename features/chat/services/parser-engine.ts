@@ -14,6 +14,8 @@ export type ProfileUpdate = {
   dependents?: number;
 
   maritalStatus?: string;
+
+  totalDebt?: number;
 };
 
 export type ParsedResult = {
@@ -84,7 +86,7 @@ export class ParserEngine {
      -----------------------------------
     */
 
-    if (
+        if (
       lower.includes(
         "got married"
       ) ||
@@ -92,6 +94,29 @@ export class ParserEngine {
     ) {
       profileUpdates.maritalStatus =
         "MARRIED";
+
+      detectedIntent =
+        "PROFILE_UPDATE";
+    }
+
+    /*
+     -----------------------------------
+     DEBT PROFILE DETECTION
+     -----------------------------------
+     "I have/took/owe/got/borrowed 5000 debt/loan" → profile update
+     "I paid/repaid/paid off 2000 debt/loan" → financial entry (DEBT_PAYMENT)
+    */
+
+    const debtTakeMatch =
+      lower.match(
+        /(?:have|took|taken|owe|owed|borrowed|got|have\sa)\s+(\d+)\s+(?:debt|loan)/i
+      );
+
+    if (debtTakeMatch) {
+      profileUpdates.totalDebt =
+        Number(
+          debtTakeMatch[1]
+        );
 
       detectedIntent =
         "PROFILE_UPDATE";

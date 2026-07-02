@@ -20,9 +20,14 @@ const navigation = [
     href: "/chat",
   },
 
-  {
+    {
     name: "Transactions",
     href: "/transactions",
+  },
+
+  {
+    name: "Profile",
+    href: "/profile",
   },
 
   {

@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 
+
+
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/current-user";
 import { ensureMonthlySnapshot } from "@/lib/ensure-monthly-snapshot";
-
+import { getCurrencySymbol } from "@/lib/currency";
 
 export default async function AllocationsPage() {
   const user =
@@ -14,7 +16,6 @@ export default async function AllocationsPage() {
   }
 
   await ensureMonthlySnapshot(user.id);
-
 
   /*
     LOAD PROFILE
@@ -40,7 +41,6 @@ export default async function AllocationsPage() {
       version: "desc",
     },
   });
-
 
   /*
     IF NO ONBOARDING
@@ -70,15 +70,12 @@ export default async function AllocationsPage() {
       profile.additionalIncome || 0
     );
 
-  const hasDebt =
-    profile.hasDebt;
-
-  
-
   const health =
     Number(
       blueprint.financialHealthScore || 0
     );
+
+  const currencySymbol = getCurrencySymbol(profile.currency);
 
   return (
     <main className="space-y-8">
@@ -104,7 +101,7 @@ export default async function AllocationsPage() {
         </h2>
 
         <div className="mt-4 text-4xl font-bold text-white">
-          $
+          {currencySymbol}
           {baseIncome.toLocaleString()}
         </div>
 
@@ -116,7 +113,7 @@ export default async function AllocationsPage() {
           <div className="mt-4 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
 
             <p className="font-medium text-green-400">
-              +$
+              +{currencySymbol}
               {additionalIncome.toLocaleString()}{" "}
               additional income recorded
             </p>
@@ -186,7 +183,7 @@ export default async function AllocationsPage() {
               </th>
 
               <th className="pb-3 text-left">
-                Suggested Range
+                Allocation
               </th>
 
               <th className="pb-3 text-left">
@@ -206,7 +203,7 @@ export default async function AllocationsPage() {
               </td>
 
               <td>
-                70%
+                {blueprint.operationalPercentage}%
               </td>
 
               <td>
@@ -222,7 +219,7 @@ export default async function AllocationsPage() {
               </td>
 
               <td>
-                20%
+                {blueprint.debtPercentage}%
               </td>
 
               <td>
@@ -231,18 +228,34 @@ export default async function AllocationsPage() {
 
             </tr>
 
-            <tr>
+            <tr className="border-b border-zinc-900">
 
               <td className="py-4">
                 Investing
               </td>
 
               <td>
-                10%
+                {blueprint.investmentPercentage}%
               </td>
 
               <td>
                 Pay yourself first
+              </td>
+
+            </tr>
+
+            <tr>
+
+              <td className="py-4">
+                Emergency Reserve
+              </td>
+
+              <td>
+                {blueprint.emergencyPercentage}%
+              </td>
+
+              <td>
+                Financial security buffer
               </td>
 
             </tr>
@@ -292,11 +305,11 @@ export default async function AllocationsPage() {
               </td>
 
               <td>
-                70%
+                {blueprint.operationalPercentage}%
               </td>
 
               <td>
-                $
+                {currencySymbol}
                 {Number(
                   blueprint.operationalAllocation
                 ).toLocaleString()}
@@ -311,11 +324,11 @@ export default async function AllocationsPage() {
               </td>
 
               <td>
-                {hasDebt ? "20%" : "0%"}
+                {blueprint.debtPercentage}%
               </td>
 
               <td>
-                $
+                {currencySymbol}
                 {Number(
                   blueprint.debtAllocation
                 ).toLocaleString()}
@@ -330,11 +343,11 @@ export default async function AllocationsPage() {
               </td>
 
               <td>
-                10%
+                {blueprint.investmentPercentage}%
               </td>
 
               <td>
-                $
+                {currencySymbol}
                 {Number(
                   blueprint.investmentAllocation
                 ).toLocaleString()}
@@ -349,11 +362,11 @@ export default async function AllocationsPage() {
               </td>
 
               <td>
-                5%
+                {blueprint.emergencyPercentage}%
               </td>
 
               <td>
-                $
+                {currencySymbol}
                 {Number(
                   blueprint.emergencyAllocation
                 ).toLocaleString()}
@@ -379,7 +392,7 @@ export default async function AllocationsPage() {
 
           <p className="mt-3 text-2xl font-bold text-white">
 
-            $
+            {currencySymbol}
             {Number(
               blueprint.emergencyAllocation
             ).toLocaleString()}
@@ -396,7 +409,7 @@ export default async function AllocationsPage() {
 
           <p className="mt-3 text-2xl font-bold text-white">
 
-            {hasDebt
+            {profile.hasDebt
               ? "High"
               : "Cleared"}
 

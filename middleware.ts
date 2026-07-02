@@ -21,8 +21,11 @@ export function middleware(
     request.nextUrl.pathname.startsWith(
       "/goals"
     ) ||
-    request.nextUrl.pathname.startsWith(
+        request.nextUrl.pathname.startsWith(
       "/settings"
+    ) ||
+    request.nextUrl.pathname.startsWith(
+      "/profile"
     );
 
   if (
@@ -46,5 +49,6 @@ export const config = {
     "/allocations/:path*",
     "/goals/:path*",
     "/settings/:path*",
+    "/profile/:path*",
   ],
 };

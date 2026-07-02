@@ -11,6 +11,8 @@ import { BudgetEngine } from "@/features/budgets/services/budget-engine";
 
 import { PFOSEngine } from "@/features/pfos/services/pfos-engine";
 
+import { retryTransaction } from "@/lib/retry-transaction";
+
 
 /*
  -----------------------------------
@@ -120,12 +122,13 @@ export async function sendMessage(
     );
   };
 
-    const shouldRecomputeBlueprint =
+        const shouldRecomputeBlueprint =
     parsed.profileUpdates !== null &&
     (parsed.profileUpdates.dependents !== undefined ||
-      isMaritalStatus(parsed.profileUpdates.maritalStatus));
+      isMaritalStatus(parsed.profileUpdates.maritalStatus) ||
+      parsed.profileUpdates.totalDebt !== undefined);
 
-  if (parsed.profileUpdates) {
+    if (parsed.profileUpdates) {
     await db.financialProfile.updateMany({
       where: {
         userId: session.user.id,
@@ -142,6 +145,13 @@ export async function sendMessage(
         ...(isMaritalStatus(parsed.profileUpdates.maritalStatus)
           ? {
               maritalStatus: parsed.profileUpdates.maritalStatus,
+            }
+          : {}),
+
+        ...(parsed.profileUpdates.totalDebt !== undefined
+          ? {
+              totalDebt: parsed.profileUpdates.totalDebt,
+              hasDebt: parsed.profileUpdates.totalDebt > 0,
             }
           : {}),
       },
@@ -181,7 +191,7 @@ export async function sendMessage(
         dependentsCount: latestProfile.dependentsCount,
       });
 
-      await db.$transaction(async (tx) => {
+      await retryTransaction(async (tx) => {
         await tx.financialBlueprint.updateMany({
           where: {
             userId: session.user.id,
