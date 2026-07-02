@@ -91,9 +91,7 @@ export function GoalStep({
             <input
                             type="radio"
               value="true"
-              {...register("interestedInInvesting", {
-                setValueAs: (v) => v === "true",
-              })}
+                            {...register("interestedInInvesting")}
             />
             Yes
           </label>
@@ -102,9 +100,7 @@ export function GoalStep({
                         <input
               type="radio"
               value="false"
-              {...register("interestedInInvesting", {
-                setValueAs: (v) => v === "true",
-              })}
+                            {...register("interestedInInvesting")}
             />
             No
           </label>

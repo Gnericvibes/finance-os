@@ -24,9 +24,9 @@ export function OnboardingNavigation({
         Back
       </button>
 
-      <button
-        type="button"
-        onClick={onNext}
+            <button
+        type={currentStep === 5 ? "submit" : "button"}
+        onClick={currentStep === 5 ? undefined : onNext}
         className="rounded-2xl bg-white px-6 py-3 font-semibold text-black transition hover:opacity-90"
       >
         {currentStep === 5

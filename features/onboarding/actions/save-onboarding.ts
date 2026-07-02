@@ -84,7 +84,7 @@ export async function saveOnboarding(data: OnboardingFormValues) {
             ? Number(values.emergencySavingsGoal)
             : null,
 
-          interestedInInvesting: Boolean(values.interestedInInvesting),
+          interestedInInvesting: values.interestedInInvesting === "true",
         },
 
         create: {
@@ -115,7 +115,7 @@ export async function saveOnboarding(data: OnboardingFormValues) {
             ? Number(values.emergencySavingsGoal)
             : null,
 
-          interestedInInvesting: Boolean(values.interestedInInvesting),
+          interestedInInvesting: values.interestedInInvesting === "true",
         },
       });
 

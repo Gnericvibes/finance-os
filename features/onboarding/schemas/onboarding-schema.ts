@@ -157,7 +157,7 @@ export const onboardingSchema =
         z.number().optional(),
 
       interestedInInvesting:
-        z.boolean().optional(),
+        z.enum(["true", "false"]).optional(),
     })
     .superRefine(
       (data, ctx) => {

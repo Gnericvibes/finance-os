@@ -137,14 +137,15 @@ export function OnboardingForm() {
           undefined,
 
                 interestedInInvesting:
-            true,
+                    "true",
       },
     });
 
-  const {
+    const {
     register,
     watch,
     handleSubmit,
+    formState: { errors },
   } = form;
 
   async function onSubmit(
@@ -280,7 +281,23 @@ export function OnboardingForm() {
         )}
         className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-950 p-8 shadow-2xl"
       >
-        {renderStep()}
+                {renderStep()}
+
+        {/* Validation Errors */}
+        {Object.keys(errors).length > 0 && (
+          <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+            <p className="text-sm font-medium text-red-400 mb-2">
+              Please fix the following errors:
+            </p>
+            <ul className="space-y-1">
+              {Object.entries(errors).map(([key, error]) => (
+                <li key={key} className="text-sm text-red-300">
+                  {error?.message as string}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {currentStep <
           6 && (
