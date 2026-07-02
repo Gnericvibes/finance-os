@@ -44,7 +44,7 @@ export function PersonalProfileStep({
             Select employment status
           </option>
 
-          <option value="SALARIED">
+                    <option value="EMPLOYED">
             Salaried Employee
           </option>
 

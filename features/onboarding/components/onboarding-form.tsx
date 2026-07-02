@@ -136,8 +136,8 @@ export function OnboardingForm() {
         emergencySavingsGoal:
           undefined,
 
-        interestedInInvesting:
-          false,
+                interestedInInvesting:
+            true,
       },
     });
 

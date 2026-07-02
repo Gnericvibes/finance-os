@@ -31,36 +31,40 @@ export function GoalStep({
             Select financial goal
           </option>
 
-          <option value="DEBT_FREE">
+                    <option value="EMERGENCY_FUND">
+            Emergency Fund
+          </option>
+
+          <option value="DEBT_FREEDOM">
             Become Debt Free
           </option>
 
-          <option value="BUILD_SAVINGS">
-            Build Savings
+          <option value="HOME_OWNERSHIP">
+            Home Ownership
           </option>
 
-          <option value="EMERGENCY_FUND">
-            Emergency Fund
+          <option value="BUSINESS_GROWTH">
+            Business Growth
           </option>
 
           <option value="RETIREMENT">
             Retirement
           </option>
 
-          <option value="BUSINESS_CAPITAL">
-            Business Capital
+          <option value="INVESTMENT">
+            Investment
           </option>
 
-          <option value="FINANCIAL_FREEDOM">
-            Financial Freedom
+          <option value="WEALTH_BUILDING">
+            Wealth Building
           </option>
         </select>
       </div>
 
-      {/* Savings Goal */}
+            {/* Savings Goal */}
       <div className="space-y-2">
         <label className="text-sm text-zinc-400">
-          Target Savings Amount
+          Emergency Savings Goal
         </label>
 
         <input
@@ -74,6 +78,37 @@ export function GoalStep({
           )}
           className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-white outline-none transition focus:border-zinc-600"
         />
+      </div>
+
+      {/* Interested in Investing */}
+      <div className="space-y-2">
+        <label className="text-sm text-zinc-400">
+          Are you interested in investing?
+        </label>
+
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 text-sm text-white">
+            <input
+                            type="radio"
+              value="true"
+              {...register("interestedInInvesting", {
+                setValueAs: (v) => v === "true",
+              })}
+            />
+            Yes
+          </label>
+
+          <label className="flex items-center gap-2 text-sm text-white">
+                        <input
+              type="radio"
+              value="false"
+              {...register("interestedInInvesting", {
+                setValueAs: (v) => v === "true",
+              })}
+            />
+            No
+          </label>
+        </div>
       </div>
     </div>
   );
