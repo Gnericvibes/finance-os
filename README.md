@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Finance OS
 
-## Getting Started
+An AI personal-finance operating system. You tell it what you earn, spend, and owe; a deterministic engine scores your financial health, places you on a stage (SURVIVAL -> RECOVERY -> STABLE -> GROWTH -> WEALTH_BUILDING), and generates a four-bucket blueprint (operational / debt / investment / emergency). An AI advisor then narrates and coaches against that state.
 
-First, run the development server:
+Built for the Nigerian market first (Naira default), multi-currency ready.
+
+## How it works
+
+- **Deterministic engine, not vibes.** `features/pfos/services/pfos-engine.ts` computes every number - health score, debt-to-income, liquidity, pressure, stage. The LLM never does the math; it only explains numbers the engine already produced. If the AI call fails, the app still answers from the engine (graceful fallback).
+- **Feature-sliced.** Each domain lives under `features/<domain>/{actions,components,services,validators,schemas,store}`.
+- **Versioned blueprints + snapshots.** Every profile change generates a new versioned `FinancialBlueprint`; `Snapshot` records point-in-time net worth; `EntryHistory` keeps an audit trail.
+
+## Stack
+
+- Next.js 16 (App Router) + React
+- Prisma + PostgreSQL
+- better-auth (email/password)
+- OpenAI (chat advisor)
+- Tailwind v4 + shadcn/ui + Recharts + framer-motion
+- Zod, react-hook-form, zustand
+
+## Getting started
 
 ```bash
+# 1. Install
+npm install
+
+# 2. Configure environment
+cp .env.example .env
+# then fill in DATABASE_URL, BETTER_AUTH_SECRET, OPENAI_API_KEY
+
+# 3. Set up the database
+npx prisma migrate deploy   # or: npx prisma migrate dev
+
+# 4. Run
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploying
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This app deploys cleanly to Vercel. Set these in the project's environment:
 
-## Learn More
+- `DATABASE_URL`
+- `BETTER_AUTH_SECRET` (>= 32 random chars - `openssl rand -base64 32`)
+- `BETTER_AUTH_URL` = your deployed origin, e.g. `https://finance-os.vercel.app` (required, or sign-in breaks)
+- `OPENAI_API_KEY`
 
-To learn more about Next.js, take a look at the following resources:
+Cookies are set `secure` automatically when `NODE_ENV=production`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Path | What |
+|------|------|
+| `features/pfos/` | The deterministic financial engine (scores, stages, blueprint) |
+| `features/ai/` | AI advisor - context builder + orchestrator + fallback |
+| `features/onboarding/` | Multi-step profile intake |
+| `features/analytics/` | Transactions, comparisons, CSV export |
+| `features/budgets/` `features/dashboard/` `features/intelligence/` | Budgeting, dashboard, predictive views |
+| `lib/` | Auth, db, currency, shared utils |
+| `prisma/` | Schema + migrations |
 
-## Deploy on Vercel
+## Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev      # dev server
+npm run build    # production build
+npm run start    # serve production build
+npm run lint     # eslint
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+MIT.

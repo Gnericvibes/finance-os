@@ -1,12 +1,29 @@
-import OpenAI from "openai";
+import { openai } from "@/lib/openai";
 
 import { FinancialContext } from "./financial-context";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 type AIContext = Awaited<ReturnType<typeof FinancialContext.build>>;
+
+// Only the financial signals the model needs - never the raw profile row.
+// Strips personally identifying fields (name, ids, timestamps) before the
+// context ever leaves our server for a third-party LLM.
+function redactContextForPrompt(context: AIContext) {
+  return {
+    stage: context.blueprint?.blueprintMode ?? "UNKNOWN",
+    currency: context.profile?.currency ?? "NGN",
+    allocationTargets: context.blueprint
+      ? {
+          operationalPercentage: context.blueprint.operationalPercentage,
+          debtPercentage: context.blueprint.debtPercentage,
+          investmentPercentage: context.blueprint.investmentPercentage,
+          emergencyPercentage: context.blueprint.emergencyPercentage,
+          financialHealthScore: context.blueprint.financialHealthScore,
+        }
+      : null,
+    analytics: context.analytics,
+    budgets: context.budgets,
+  };
+}
 
 
 export class AIOrchestrator {
@@ -58,7 +75,7 @@ You must:
 
 USER FINANCIAL PROFILE:
 
-${JSON.stringify(context, null, 2)}
+${JSON.stringify(redactContextForPrompt(context), null, 2)}
 
 `;
 
