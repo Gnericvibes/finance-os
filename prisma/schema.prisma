@@ -131,6 +131,13 @@ emergencySavingsGoal Decimal? @db.Decimal(18,2)
 
 interestedInInvesting Boolean @default(true)
 
+// Farcaster creator identity (optional). Powers creator-aware advice.
+farcasterFid Int? @unique
+farcasterUsername String?
+farcasterDisplayName String?
+farcasterPfpUrl String?
+farcasterFollowers Int?
+
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 

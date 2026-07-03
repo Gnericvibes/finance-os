@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/current-user";
 import { getCurrencySymbol } from "@/lib/currency";
 
 import { ProfileForm } from "@/app/(platform)/profile/profile-form";
+import { ConnectFarcasterCard } from "@/features/farcaster/components/connect-farcaster-card";
 
 export default async function ProfilePage() {
   const user = await getCurrentUser();
@@ -201,6 +202,23 @@ export default async function ProfilePage() {
           </div>
         )}
       </section>
+
+      {/* FARCASTER CREATOR */}
+
+      <ConnectFarcasterCard
+        currencySymbol={currencySymbol}
+        connection={
+          profile.farcasterFid && profile.farcasterUsername
+            ? {
+                fid: profile.farcasterFid,
+                username: profile.farcasterUsername,
+                displayName: profile.farcasterDisplayName,
+                pfpUrl: profile.farcasterPfpUrl,
+                followers: profile.farcasterFollowers,
+              }
+            : null
+        }
+      />
 
       {/* EDIT FORM */}
 
