@@ -15,7 +15,7 @@ Built for the Nigerian market first (Naira default), multi-currency ready.
 - Next.js 16 (App Router) + React
 - Prisma + PostgreSQL
 - better-auth (email/password)
-- DeepSeek (chat advisor, OpenAI-compatible API - swappable to OpenAI)
+- Chat advisor over an OpenAI-compatible API - DeepSeek (default), OpenRouter, or OpenAI, selectable by env. Per-call cost safeguards (output-token cap, input truncation, bounded context).
 - Tailwind v4 + shadcn/ui + Recharts + framer-motion
 - Zod, react-hook-form, zustand
 
@@ -45,7 +45,7 @@ This app deploys cleanly to Vercel. Set these in the project's environment:
 - `DATABASE_URL`
 - `BETTER_AUTH_SECRET` (>= 32 random chars - `openssl rand -base64 32`)
 - `BETTER_AUTH_URL` = your deployed origin, e.g. `https://finance-os.vercel.app` (required, or sign-in breaks)
-- `DEEPSEEK_API_KEY` (or `OPENAI_API_KEY` to use OpenAI instead)
+- `DEEPSEEK_API_KEY` (or `OPENROUTER_API_KEY` / `OPENAI_API_KEY`). On OpenRouter, set a per-key credit limit for a hard spend cap.
 
 Cookies are set `secure` automatically when `NODE_ENV=production`.
 

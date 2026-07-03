@@ -1,8 +1,17 @@
-import { openai, AI_MODEL } from "@/lib/openai";
+import {
+  openai,
+  AI_MODEL,
+  AI_MAX_OUTPUT_TOKENS,
+  AI_MAX_INPUT_CHARS,
+  AI_TEMPERATURE,
+} from "@/lib/openai";
 
 import { FinancialContext } from "./financial-context";
 
 type AIContext = Awaited<ReturnType<typeof FinancialContext.build>>;
+
+// Keep the context sent to the model bounded so the prompt can't balloon.
+const MAX_BUDGET_ROWS = 25;
 
 // Only the financial signals the model needs - never the raw profile row.
 // Strips personally identifying fields (name, ids, timestamps) before the
@@ -21,7 +30,7 @@ function redactContextForPrompt(context: AIContext) {
         }
       : null,
     analytics: context.analytics,
-    budgets: context.budgets,
+    budgets: context.budgets.slice(0, MAX_BUDGET_ROWS),
   };
 }
 
@@ -47,6 +56,10 @@ export class AIOrchestrator {
       await FinancialContext.build(
         userId
       );
+
+    // Safeguard: never send more than the allowed number of input characters
+    // to the model (prevents prompt-stuffing and runaway token cost).
+    const safeMessage = message.slice(0, AI_MAX_INPUT_CHARS);
 
     /*
      -----------------------------------
@@ -102,11 +115,14 @@ ${JSON.stringify(redactContextForPrompt(context), null, 2)}
               {
                 role: "user",
 
-                content: message,
+                content: safeMessage,
               },
             ],
 
-            temperature: 0.7,
+            temperature: AI_TEMPERATURE,
+
+            // Safeguard: cap output tokens so no single call runs away on cost.
+            max_tokens: AI_MAX_OUTPUT_TOKENS,
           }
         );
 
