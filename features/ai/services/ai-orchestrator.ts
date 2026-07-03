@@ -1,4 +1,4 @@
-import { openai } from "@/lib/openai";
+import { openai, AI_MODEL } from "@/lib/openai";
 
 import { FinancialContext } from "./financial-context";
 
@@ -89,7 +89,7 @@ ${JSON.stringify(redactContextForPrompt(context), null, 2)}
       const response =
         await openai.chat.completions.create(
           {
-            model: "gpt-4.1-mini",
+            model: AI_MODEL,
 
             messages: [
               {
