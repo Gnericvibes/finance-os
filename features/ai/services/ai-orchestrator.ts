@@ -31,6 +31,13 @@ function redactContextForPrompt(context: AIContext) {
       : null,
     analytics: context.analytics,
     budgets: context.budgets.slice(0, MAX_BUDGET_ROWS),
+    farcaster: context.profile?.farcasterFid
+      ? {
+          isCreator: true,
+          username: context.profile.farcasterUsername,
+          followers: context.profile.farcasterFollowers ?? 0,
+        }
+      : { isCreator: false },
   };
 }
 
@@ -85,6 +92,11 @@ You must:
 - be practical
 - avoid generic motivation
 - give actionable recommendations
+
+If the user is a Farcaster creator (see farcaster.isCreator), tailor advice for
+creator economics: irregular and lumpy income from tips, mints, rewards and
+sponsorships; the need for a larger buffer to smooth volatile months; separating
+creator income from personal spending; and reinvesting into their audience.
 
 USER FINANCIAL PROFILE:
 
