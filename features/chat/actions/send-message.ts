@@ -7,7 +7,9 @@ import { db } from "@/lib/db";
 
 import { ParserEngine } from "@/features/chat/services/parser-engine";
 
-import { BudgetEngine } from "@/features/budgets/services/budget-engine";
+import { AIParser } from "@/features/ai/services/ai-parser";
+
+import { AIAdvisor } from "@/features/ai/services/ai-advisor";
 
 import { PFOSEngine } from "@/features/pfos/services/pfos-engine";
 
@@ -78,14 +80,35 @@ export async function sendMessage(
     },
   });
 
-  /*
+    /* TODO
    -----------------------------------
-   PARSE MESSAGE
+   PARSE MESSAGE (AI FIRST, FALLBACK TO REGEX)
    -----------------------------------
   */
 
-  const parsed =
-    ParserEngine.parse(content);
+  let parsed;
+
+  try {
+    const aiResult = await AIParser.parse(
+      session.user.id,
+      content
+    );
+
+    if (aiResult && aiResult.entries.length > 0) {
+      parsed = {
+        entries: aiResult.entries,
+        profileUpdates: aiResult.profileUpdates,
+        detectedIntent: "ENTRY" as const,
+        aiResponse: "",
+      };
+    } else {
+      throw new Error("AI returned no entries");
+    }
+  } catch {
+    console.log("AI parser unavailable, falling back to regex parser");
+
+    parsed = ParserEngine.parse(content);
+  }
 
   /*
    -----------------------------------
@@ -242,14 +265,17 @@ export async function sendMessage(
 
 
 
-  /*
+    /*
    -----------------------------------
-   BASE RESPONSE
+   GENERATE AI ADVISORY RESPONSE
    -----------------------------------
   */
 
-  let assistantResponse =
-    parsed.aiResponse;
+  let assistantResponse = await AIAdvisor.generateAdvice(
+    session.user.id,
+    content,
+    parsed.entries
+  );
 
   /*
    -----------------------------------
@@ -339,184 +365,7 @@ export async function sendMessage(
   }));
 
 
-  /*
-   -----------------------------------
-   TRANSACTION INSIGHTS
-   -----------------------------------
-  */
-
-  if (
-    parsed.entries.length > 0
-  ) {
-    const total =
-      parsed.entries.reduce(
-        (
-          acc,
-          entry
-        ) =>
-          acc +
-          entry.amount,
-        0
-      );
-
-    assistantResponse += ` Total processed amount: ₦${total.toLocaleString()}.`;
-
     /*
-     -----------------------------------
-     LARGE SPENDING ALERT
-     -----------------------------------
-    */
-
-    if (
-      total > 100000
-    ) {
-      assistantResponse +=
-        " Large transaction volume detected. Monitor cashflow carefully.";
-    }
-
-    /*
-     -----------------------------------
-     BUDGET ANALYSIS
-     -----------------------------------
-    */
-
-    if (
-      activeBudget
-    ) {
-            const budgetAnalysis = BudgetEngine.analyzeBudget(
-        activeBudget.categories.map((category) => ({
-          category: category.category.name,
-          limitAmount: Number(category.limitAmount),
-        })),
-        allEntryData,
-        blueprintData
-      );
-
-
-      const warnings =
-        budgetAnalysis.filter(
-          (item) =>
-            item.status ===
-              "OVER_BUDGET" ||
-            item.status ===
-              "WARNING"
-        );
-
-      if (
-        warnings.length > 0
-      ) {
-        assistantResponse +=
-          " Budget alerts detected.";
-
-        warnings.forEach(
-          (warning) => {
-            if (
-              warning.status ===
-              "OVER_BUDGET"
-            ) {
-              assistantResponse += ` ${warning.category} budget exceeded by ${warning.percentage - 100}%.`;
-            }
-
-            if (
-              warning.status ===
-              "WARNING"
-            ) {
-              assistantResponse += ` ${warning.category} spending is at ${warning.percentage}% of budget.`;
-            }
-          }
-        );
-      }
-    }
-
-    /*
-     -----------------------------------
-     PFOS LIFESTYLE CHECK
-     -----------------------------------
-    */
-
-    if (
-      blueprint &&
-      profile
-    ) {
-            const totalExpenses = allEntryData
-        .filter((entry) => entry.type === "EXPENSE")
-        .reduce((acc, entry) => acc + entry.amount, 0);
-
-      const monthlyIncome = Number(profile.monthlyIncome);
-
-      const lifestyleLimit =
-        (monthlyIncome * blueprint.operationalPercentage) / 100;
-
-
-      if (
-        totalExpenses >
-        lifestyleLimit
-      ) {
-        assistantResponse +=
-          " PFOS warning: lifestyle spending is exceeding your recommended allocation.";
-      }
-
-      /*
-       -----------------------------------
-       LOW CASHFLOW ALERT
-       -----------------------------------
-      */
-
-            const income = allEntryData
-        .filter((entry) => entry.type === "INCOME")
-        .reduce((acc, entry) => acc + entry.amount, 0);
-
-
-      const cashflow =
-        income -
-        totalExpenses;
-
-      if (
-        cashflow < 0
-      ) {
-        assistantResponse +=
-          " Negative cashflow detected. Expense reduction is recommended immediately.";
-      }
-
-      /*
-       -----------------------------------
-       SAVINGS COACHING
-       -----------------------------------
-      */
-
-            const savingsRate =
-        income === 0
-          ? 0
-          : Math.round(((income - totalExpenses) / income) * 100);
-
-      if (savingsRate < 20) {
-        assistantResponse +=
-          " Savings rate is below optimal PFOS target. Increase savings allocation gradually.";
-      }
-
-    }
-
-    /*
-     -----------------------------------
-     SHOPPING DETECTION
-     -----------------------------------
-    */
-
-        const shoppingEntries = parsed.entries.filter(
-      (entry) => entry.category.toLowerCase() === "shopping"
-    );
-
-
-    if (
-      shoppingEntries.length >
-      0
-    ) {
-      assistantResponse +=
-        " Lifestyle spending detected. Ensure discretionary purchases align with long-term financial stability.";
-    }
-  }
-
-  /*
    -----------------------------------
    SAVE AI MESSAGE
    -----------------------------------
@@ -539,7 +388,8 @@ export async function sendMessage(
    -----------------------------------
   */
 
-  return {
+    return {
     success: true,
+    response: assistantResponse,
   };
 }

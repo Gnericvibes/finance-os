@@ -1,5 +1,7 @@
 "use client";
 
+import { Sidebar } from "@/components/layout/sidebar";
+
 interface Props {
   children: React.ReactNode;
 }
@@ -7,9 +9,13 @@ interface Props {
 export function PlatformLayout({
   children,
 }: Props) {
-  return (
+    return (
     <div className="min-h-screen bg-black text-white">
-      {children}
+      <Sidebar />
+
+      <main className="ml-[220px] h-screen overflow-y-auto">
+        {children}
+      </main>
     </div>
   );
 }

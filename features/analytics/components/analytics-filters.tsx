@@ -2,41 +2,34 @@
 
 interface AnalyticsFiltersProps {
   category: string;
-
-  onCategoryChange: (
-    value: string
-  ) => void;
+  onCategoryChange: (value: string) => void;
+  type?: string;
 }
 
-const categories = [
-  "all",
-  "food",
-  "transport",
-  "shopping",
-  "rent",
-  "salary",
-  "investment",
-  "airtime",
-  "health",
-  "entertainment",
-];
+const FILTERS_BY_TYPE: Record<string, string[]> = {
+  income: ["all", "Salary", "Freelance", "Business", "Investment Returns", "Bonus", "Commission", "Dividends"],
+  expenses: ["all", "Rent / Housing", "Food & Groceries", "Transport", "Utilities", "School Fees", "Subscriptions", "Healthcare", "Miscellaneous"],
+  investments: ["all", "Stocks", "Treasury Bills", "Mutual Funds", "Real Estate", "Crypto", "Bonds", "ETFs"],
+  "debt-payment": ["all", "Loan Repayment", "Credit Card", "Mortgage", "Student Loan", "Personal Loan"],
+  transfer: ["all", "Wallet Transfer", "Bank Transfer", "Savings Transfer", "Auto-Save"],
+};
 
 export function AnalyticsFilters({
   category,
   onCategoryChange,
+  type,
 }: AnalyticsFiltersProps) {
+  const filters = type ? FILTERS_BY_TYPE[type] ?? ["all"] : ["all"];
+
   return (
     <div className="flex flex-wrap gap-3">
-      {categories.map((item) => {
-        const active =
-          category === item;
+            {filters.map((item) => {
+        const active = item === "all" ? !category : category === item;
 
         return (
-          <button
+                    <button
             key={item}
-            onClick={() =>
-              onCategoryChange(item)
-            }
+            onClick={() => onCategoryChange(item === "all" ? "" : item)}
             className={`
               px-4
               py-2

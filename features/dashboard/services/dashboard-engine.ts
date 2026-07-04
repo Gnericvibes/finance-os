@@ -36,11 +36,10 @@ export class DashboardEngine {
    -----------------------------------
   */
 
-  static getExpenses(entries: DashboardEntry[]) {
+    static getExpenses(entries: DashboardEntry[]) {
     return entries
       .filter(
-        (entry) =>
-          entry.type === "EXPENSE" || entry.type === "DEBT_PAYMENT"
+        (entry) => entry.type === "EXPENSE"
       )
       .reduce((total, entry) => total + entry.amount, 0);
   }
@@ -93,9 +92,9 @@ export class DashboardEngine {
    -----------------------------------
   */
 
-  static getExpenseBreakdown(entries: DashboardEntry[]) {
+    static getExpenseBreakdown(entries: DashboardEntry[]) {
     const expenses = entries.filter(
-      (entry) => entry.type === "EXPENSE" || entry.type === "DEBT_PAYMENT"
+      (entry) => entry.type === "EXPENSE"
     );
 
     const totalExpenses = expenses.reduce(

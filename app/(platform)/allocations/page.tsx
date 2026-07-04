@@ -77,19 +77,41 @@ export default async function AllocationsPage() {
 
   const currencySymbol = getCurrencySymbol(profile.currency);
 
-  return (
-    <main className="space-y-8">
+
+
+
+
+
+
+
+
+
+
+
+
+
+    return (
+    <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">
 
       {/* HEADER */}
 
-      <section>
-        <h1 className="text-4xl font-bold text-white">
-          {userName} Blueprint
-        </h1>
+      <section className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-white">
+            {userName} Blueprint
+          </h1>
 
-        <p className="mt-2 text-zinc-400">
-          Your personal financial operating system
-        </p>
+          <p className="mt-2 text-zinc-400">
+            Your personal financial operating system
+          </p>
+        </div>
+
+        <a
+          href="/dashboard"
+          className="rounded-xl bg-white px-6 py-3 font-semibold text-black hover:bg-zinc-200 transition-colors"
+        >
+          Go to Dashboard
+        </a>
       </section>
 
       {/* INCOME */}

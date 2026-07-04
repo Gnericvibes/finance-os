@@ -85,9 +85,12 @@ export async function createEntry(
      -----------------------------------
     */
 
-    return {
+        return {
       success: true,
-      entry,
+      entry: {
+        ...entry,
+        amount: Number(entry.amount),
+      },
     };
   } catch (error) {
     console.error(

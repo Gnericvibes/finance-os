@@ -15,7 +15,8 @@ import {
   type DashboardEntry,
 } from "@/features/dashboard/services/dashboard-engine";
 
-import { SpendingChart } from "@/features/dashboard/components/spending-chart";
+
+
 
 
 export default async function DashboardPage() {
@@ -66,9 +67,18 @@ export default async function DashboardPage() {
       take: 10,
     });
 
-  const normalizedEntries = entries.map((entry) => ({
-    ...entry,
+    const normalizedEntries = entries.map((entry) => ({
+    id: entry.id,
+    type: entry.type,
+    title: entry.title,
+    description: entry.description,
     amount: Number(entry.amount),
+    isDeleted: entry.isDeleted,
+    createdAt: entry.createdAt.toISOString(),
+    updatedAt: entry.updatedAt.toISOString(),
+    userId: entry.userId,
+    accountId: entry.accountId,
+    categoryId: entry.categoryId,
     categoryName: entry.category?.name ?? "Uncategorized",
   }));
 
@@ -95,6 +105,25 @@ export default async function DashboardPage() {
 
   const savingsRate = DashboardEngine.getSavingsRate(engineEntries);
 
+  const totalDebtPaid = engineEntries
+    .filter((e) => e.type === "DEBT_PAYMENT")
+    .reduce((s, e) => s + e.amount, 0);
+
+  const profile = await db.financialProfile.findUnique({
+    where: { userId: session.user.id },
+  });
+
+  const totalDebtOwed = Number(profile?.totalDebt ?? 0);
+
+
+
+
+
+
+
+
+
+    const remainingDebt = Math.max(0, totalDebtOwed - totalDebtPaid);
 
   /*
    -----------------------------------
@@ -105,33 +134,6 @@ export default async function DashboardPage() {
     const expenseBreakdown =
     DashboardEngine.getExpenseBreakdown(engineEntries);
 
-
-  /*
-   -----------------------------------
-   SPENDING CHART DATA
-   -----------------------------------
-  */
-
-  const spendingMap = new Map<
-    string,
-    number
-  >();
-
-    engineEntries
-    .filter((entry) => entry.type === "EXPENSE")
-    .forEach((entry) => {
-      const current = spendingMap.get(entry.category) || 0;
-
-      spendingMap.set(entry.category, current + entry.amount);
-    });
-
-
-  const spendingData = Array.from(
-    spendingMap.entries()
-  ).map(([name, value]) => ({
-    name,
-    value,
-  }));
 
   /*
    -----------------------------------
@@ -186,10 +188,17 @@ export default async function DashboardPage() {
             value={`₦${cashFlow.toLocaleString()}`}
           />
 
-          <AnalyticsCard
+                    <AnalyticsCard
             title="Live Savings Rate"
             value={`${savingsRate}%`}
           />
+
+          <Link href="/analytics/debt-payment" className="block">
+            <AnalyticsCard
+              title="Remaining Debt"
+              value={`₦${remainingDebt.toLocaleString()}`}
+            />
+          </Link>
         </div>
 
         {/* SPENDING BREAKDOWN */}
@@ -275,60 +284,9 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* SPENDING CHART */}
+                {/* ENTRY FORM */}
 
-        <SpendingChart
-          data={spendingData}
-        />
-
-        {/* ENTRY FORM */}
-
-        <EntryForm />
-
-        {/* RECENT ENTRIES */}
-
-        <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white">
-              Recent Transactions
-            </h2>
-
-                        <p className="text-sm text-zinc-400">
-              {normalizedEntries.length} Entries
-            </p>
-
-          </div>
-
-                    <div className="space-y-4">
-            {normalizedEntries.length === 0 ? (
-              <p className="text-zinc-500">No entries yet.</p>
-            ) : (
-              normalizedEntries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between border border-zinc-800 rounded-2xl p-4 bg-black/40"
-                >
-                  <div className="space-y-1">
-                    <p className="font-semibold text-white">{entry.title}</p>
-
-                    <p className="text-sm text-zinc-400">{entry.categoryName}</p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="font-bold text-lg text-white">
-                      ₦{entry.amount.toLocaleString()}
-                    </p>
-
-                    <p className="text-xs text-zinc-500">
-                      {entry.type.replaceAll("_", " ")}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-        </div>
+                <EntryForm />
       </div>
     </main>
   );

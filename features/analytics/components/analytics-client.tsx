@@ -249,12 +249,12 @@ export function AnalyticsClient({
     <div className="space-y-8">
       {/* SEARCH */}
 
-      <AnalyticsSearch
-        value={search}
-        onChange={
-          handleSearch
-        }
-      />
+            <AnalyticsSearch
+              value={search}
+              onChange={
+                handleSearch
+              }
+            />
 
       {/* FILTERS */}
 
@@ -263,6 +263,7 @@ export function AnalyticsClient({
         onCategoryChange={
           handleCategory
         }
+        type={type}
       />
 
       {/* TOTAL */}
