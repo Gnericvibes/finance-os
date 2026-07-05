@@ -75,8 +75,8 @@ export default async function ChatPage() {
         {/* HEADER */}
 
         <div className="border-b border-zinc-900 p-6">
-          <h1 className="text-4xl font-bold">
-            Finance AI
+                    <h1 className="text-4xl font-bold">
+            FOS AI
           </h1>
 
           <p className="text-zinc-400 mt-2">

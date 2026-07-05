@@ -245,30 +245,7 @@ export default async function AnalyticsPage({
       percentageChange
     );
 
-  /*
-   -----------------------------------
-   TOTAL
-   -----------------------------------
-  */
-
-    const total = normalizedEntries.reduce(
-    (acc, entry) => acc + entry.amount,
-    0
-  );
-
-
-  /*
-   -----------------------------------
-   UNIQUE CATEGORIES
-   -----------------------------------
-  */
-
-    const categories = [
-    ...new Set(normalizedEntries.map((entry) => entry.category)),
-  ];
-
-
-  /*
+    /*
    -----------------------------------
    DATE LABEL
    -----------------------------------
@@ -356,51 +333,12 @@ export default async function AnalyticsPage({
           trend={trend}
         />
 
-        {/* SUMMARY */}
+                {/* ANALYTICS */}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
-            <p className="text-zinc-400 text-sm">
-              Total Volume
-            </p>
-
-            <h2 className="text-4xl font-bold mt-3">
-              ₦
-              {total.toLocaleString()}
-            </h2>
-          </div>
-
-          <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
-            <p className="text-zinc-400 text-sm">
-              Transactions
-            </p>
-
-            <h2 className="text-4xl font-bold mt-3">
-              {
-                entries.length
-              }
-            </h2>
-          </div>
-
-          <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
-            <p className="text-zinc-400 text-sm">
-              Categories
-            </p>
-
-            <h2 className="text-4xl font-bold mt-3">
-              {
-                categories.length
-              }
-            </h2>
-          </div>
-        </div>
-
-        {/* ANALYTICS */}
-
-                <AnalyticsClient
-          entries={normalizedEntries}
-          type={type}
-        />
+                        <AnalyticsClient
+                  entries={normalizedEntries}
+                  type={type}
+                />
 
       </div>
     </main>

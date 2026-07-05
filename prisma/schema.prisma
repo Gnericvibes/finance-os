@@ -125,6 +125,8 @@ totalDebt Decimal? @db.Decimal(18,2)
 
 repaymentAmount Decimal? @db.Decimal(18,2)
 
+debtDueDate DateTime?
+
 mainFinancialGoal FinancialGoal
 
 emergencySavingsGoal Decimal? @db.Decimal(18,2)

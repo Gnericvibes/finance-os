@@ -14,121 +14,146 @@ export class AIAdvisor {
     processedEntries: { type: string; title: string; amount: number; category: string }[]
   ): Promise<string> {
     try {
-      /*
-       -----------------------------------
-       BUILD FINANCIAL CONTEXT
-       -----------------------------------
-      */
-
       const context = await FinancialContext.build(userId);
 
       const profile = context.profile;
       const blueprint = context.blueprint;
       const analytics = context.analytics;
       const budgets = context.budgets;
-
-      /*
-       -----------------------------------
-       CALCULATE SUPPLEMENTARY METRICS
-       -----------------------------------
-      */
+      const allocationComparisons = context.allocationComparisons;
+      const allocationAlerts = context.allocationAlerts;
 
       const monthlyIncome = Number(profile?.monthlyIncome ?? 0);
-
-      // Debt progress
       const totalDebt = Number(profile?.totalDebt ?? 0);
       const repaymentAmount = Number(profile?.repaymentAmount ?? 0);
       const monthsToDebtFree = repaymentAmount > 0 ? Math.ceil(totalDebt / repaymentAmount) : null;
 
-      // PFOS targets
-      const targetInvestmentAlloc = blueprint?.investmentPercentage ?? 0;
-      const targetInvestmentAmount = (monthlyIncome * targetInvestmentAlloc) / 100;
       const actualInvestmentsThisMonth = analytics.investments;
-
-      const targetDebtAlloc = blueprint?.debtPercentage ?? 0;
-      const targetDebtAmount = (monthlyIncome * targetDebtAlloc) / 100;
       const actualDebtPaidThisMonth = await this.getMonthlyDebtPayments(userId);
-
-      const targetEmergencyAlloc = blueprint?.emergencyPercentage ?? 0;
-      const targetOperationalAlloc = blueprint?.operationalPercentage ?? 0;
       const actualExpensesThisMonth = analytics.expenses;
 
-      // Was this message an entry (not just a question)?
+      // Non-negotiable: at least 10% of income goes to self-payment (investments)
+      const MIN_INVESTMENT_RATE = 0.10;
+      const minimumTargetInvestment = monthlyIncome * MIN_INVESTMENT_RATE;
+
       const isEntryMessage = processedEntries.length > 0;
+      const isReviewRequest = !isEntryMessage && this.isFinancialReviewRequest(userMessage);
+      
+      // =========================================
+      // MODE 1: ENTRY ACKNOWLEDGEMENT (short)
+      // =========================================
+      
+      if (isEntryMessage) {
+        const total = processedEntries.reduce((s, e) => s + e.amount, 0);
+        const count = processedEntries.length;
+        let response = `Recorded ${count} entr${count > 1 ? "ies" : "y"} totaling ₦${total.toLocaleString()}.`;
 
-      /*
-       -----------------------------------
-       SYSTEM PROMPT
-       -----------------------------------
-      */
-
-      const systemPrompt = `You are Finance OS AI — a financial intelligence system embedded in a user's personal operating system.
-
-YOUR ROLE:
-- Analyze the user's financial behavior
-- Alert them when they deviate from their PFOS (Personal Financial Operating System) blueprint
-- Celebrate progress and milestones
-- Give concise, actionable advice
-- Be direct — no fluff, no generic motivation
-
-CURRENT USER FINANCIAL STATE:
-${JSON.stringify(
-  {
-    monthlyIncome,
-    totalDebt,
-    repaymentAmount,
-    monthsToDebtFree,
-    analytics: {
-      totalIncome: analytics.income,
-      totalExpenses: analytics.expenses,
-      totalInvestments: analytics.investments,
-      cashFlow: analytics.cashFlow,
-      savingsRate: analytics.savingsRate,
-    },
-    pfosBlueprint: blueprint
-      ? {
-          mode: blueprint.blueprintMode,
-          operationalAllocation: `${blueprint.operationalPercentage}% (₦${((monthlyIncome * blueprint.operationalPercentage) / 100).toLocaleString()})`,
-          debtAllocation: `${blueprint.debtPercentage}% (₦${((monthlyIncome * blueprint.debtPercentage) / 100).toLocaleString()})`,
-          investmentAllocation: `${blueprint.investmentPercentage}% (₦${((monthlyIncome * blueprint.investmentPercentage) / 100).toLocaleString()})`,
-          emergencyAllocation: `${blueprint.emergencyPercentage}% (₦${((monthlyIncome * blueprint.emergencyPercentage) / 100).toLocaleString()})`,
-          financialHealthScore: blueprint.financialHealthScore,
-          isDebtFree: blueprint.isDebtFree,
+        for (const entry of processedEntries) {
+          const alloc = allocationComparisons.find(
+            (a) => a.category.toLowerCase() === entry.category.toLowerCase()
+          );
+          if (alloc && (alloc.status === "OVER" || alloc.status === "CRITICAL")) {
+            response += ` ⚠️ You've now spent ₦${alloc.actual.toLocaleString()} on ${alloc.category} this month — ${alloc.differencePercentage}% above your ₦${alloc.recommended.toLocaleString()} budget.`;
+          }
         }
-      : null,
-    budgetStatus: budgets.length > 0 ? budgets : "No active budget set",
-    actualThisMonth: {
-      expenses: actualExpensesThisMonth,
-      debtPayments: actualDebtPaidThisMonth,
-      investments: actualInvestmentsThisMonth,
-    },
-    isEntryMessage,
+
+        return response;
+      }
+
+      // =========================================
+      // MODE 2: FINANCIAL REVIEW (detailed)
+      // =========================================
+
+      if (isReviewRequest) {
+        const systemPrompt = `You are FOS AI — the user's personal financial intelligence system.
+
+The user is asking for a financial review. Give them a clear, structured summary.
+
+RESPONSE STRUCTURE:
+1. Brief overall status (1 short sentence)
+2. Income & spending overview
+3. Budget category breakdown — only call out categories that are OVER or CRITICAL (overspent)
+4. Investment status — remind them about the non-negotiable 10% self-payment rule. If they haven't invested at least 10% of income this month, encourage it.
+5. Debt progress (if applicable)
+6. One clear next action
+
+RULES:
+- Use plain, natural language. No jargon like "PFOS", "allocation", or "blueprint".
+- UNDER or ON_TRACK = good, don't flag.
+- OVER or CRITICAL = problem, call it out.
+- Keep it concise but thorough.
+
+CURRENT STATE:
+${JSON.stringify({
+  monthlyIncome,
+  totalDebt,
+  repaymentAmount,
+  monthsToDebtFree,
+  analytics: {
+    totalIncome: analytics.income,
+    totalExpenses: analytics.expenses,
+    totalInvestments: analytics.investments,
+    cashFlow: analytics.cashFlow,
+    savingsRate: analytics.savingsRate,
   },
-  null,
-  2
-)}
+  budgetBreakdown: allocationComparisons.map(a => ({
+    category: a.category,
+    monthlyBudget: a.recommended,
+    spentSoFar: a.actual,
+    status: a.status,
+  })),
+  overspendingAlerts: allocationAlerts,
+  thisMonth: {
+    expenses: actualExpensesThisMonth,
+    debtPayments: actualDebtPaidThisMonth,
+    investments: actualInvestmentsThisMonth,
+  },
+  minimumInvestmentRequired: minimumTargetInvestment,
+}, null, 2)}`;
 
-RESPONSE RULES:
-1. If the user just made a transaction (isEntryMessage = true), acknowledge it first
-2. Then check for these alerts in order:
-   - OVER-BUDGET: if any budget categories are exceeded
-   - MISSING INVESTMENT: if actual investments < target investment amount
-   - MISSING DEBT PAYMENT: if actual debt payments < target debt amount
-   - DEBT PROGRESS: if they're close to becoming debt-free (remaining debt < 3 months of payments)
-   - SPENDING WARNING: if expenses exceed operational allocation
-   - NEGATIVE CASHFLOW: if spending exceeds income
-   - LOW SAVINGS RATE: if savings rate < 20%
-3. End with the next best action they should take
-4. Keep it under 4 sentences unless there are critical alerts
-5. Be direct and specific — mention exact amounts
+        const response = await deepseek.chat.completions.create({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          temperature: 0.7,
+        });
 
-If the user is asking a question (isEntryMessage = false), answer their question based on their financial data.`;
+        return response.choices[0]?.message?.content || "Here's your financial overview.";
+      }
 
-      /*
-       -----------------------------------
-       CALL DEEPSEEK
-       -----------------------------------
-      */
+      // =========================================
+      // MODE 3: GENERAL QUESTION
+      // =========================================
+
+      const systemPrompt = `You are FOS AI. Answer the user's question based on their financial data. Be clear and direct.
+
+CURRENT STATE:
+${JSON.stringify({
+  monthlyIncome,
+  totalDebt,
+  repaymentAmount,
+  monthsToDebtFree,
+  analytics: {
+    totalIncome: analytics.income,
+    totalExpenses: analytics.expenses,
+    totalInvestments: analytics.investments,
+    cashFlow: analytics.cashFlow,
+    savingsRate: analytics.savingsRate,
+  },
+  budgetComparisons: allocationComparisons.map(a => ({
+    category: a.category,
+    budget: a.recommended,
+    spent: a.actual,
+    status: a.status,
+  })),
+  thisMonth: {
+    expenses: actualExpensesThisMonth,
+    debtPayments: actualDebtPaidThisMonth,
+    investments: actualInvestmentsThisMonth,
+  },
+}, null, 2)}`;
 
       const response = await deepseek.chat.completions.create({
         model: "deepseek-chat",
@@ -139,21 +164,30 @@ If the user is asking a question (isEntryMessage = false), answer their question
         temperature: 0.7,
       });
 
-      return (
-        response.choices[0]?.message?.content ||
-        "I've processed your update. Your financial systems are operational."
-      );
+      return response.choices[0]?.message?.content || "I've processed your question.";
     } catch (error) {
       console.error("AI Advisor Error:", error);
-
-      /*
-       -----------------------------------
-       FALLBACK — BASIC INSIGHTS
-       -----------------------------------
-      */
-
       return this.fallbackAdvice(userId, processedEntries);
     }
+  }
+
+  /*
+   -----------------------------------
+   DETECT FINANCIAL REVIEW REQUEST
+   -----------------------------------
+  */
+
+  private static isFinancialReviewRequest(message: string): boolean {
+    const reviewKeywords = [
+      "review", "summary", "overview", "how am i doing", "status update",
+      "financial review", "check in", "progress report", "how are my finances",
+      "breakdown", "give me a run down", "financial health", "health check",
+      "where do i stand", "how is my budget", "budget review", "spending review",
+      "performance", "monthly review", "financial advice", "what do you think",
+      "analyse", "analyze", "tell me about my finances",
+    ];
+    const lower = message.toLowerCase().trim();
+    return reviewKeywords.some((kw) => lower.includes(kw));
   }
 
   /*
@@ -169,34 +203,29 @@ If the user is asking a question (isEntryMessage = false), answer their question
     try {
       const context = await FinancialContext.build(userId);
 
-      let advice = "";
-
       if (processedEntries.length > 0) {
         const total = processedEntries.reduce((s, e) => s + e.amount, 0);
-        advice = `Processed ${processedEntries.length} entr${processedEntries.length > 1 ? "ies" : "y"} totaling ₦${total.toLocaleString()}.`;
+        const count = processedEntries.length;
+        let response = `Recorded ${count} entr${count > 1 ? "ies" : "y"} totaling ₦${total.toLocaleString()}.`;
+
+        // Check for overspend on this specific entry's category
+        for (const entry of processedEntries) {
+          const alloc = context.allocationComparisons.find(
+            (a) => a.category.toLowerCase() === entry.category.toLowerCase()
+          );
+          if (alloc && (alloc.status === "OVER" || alloc.status === "CRITICAL")) {
+            response += ` ⚠️ You've now spent ₦${alloc.actual.toLocaleString()} on ${alloc.category} this month — ${alloc.differencePercentage}% above your ₦${alloc.recommended.toLocaleString()} budget.`;
+          }
+        }
+
+        return response;
       }
 
-      // Budget alerts
-      const overBudget = context.budgets.filter((b) => b.status === "OVER_BUDGET");
-      if (overBudget.length > 0) {
-        advice += ` ⚠️ ${overBudget[0].category} is over budget.`;
-      }
-
-      // Cash flow
-      if (context.analytics.cashFlow < 0) {
-        advice += " ⚠️ Cash flow is negative. Expenses exceed income.";
-      }
-
-      // Savings rate
-      if (context.analytics.savingsRate < 20 && context.analytics.income > 0) {
-        advice += ` 💡 Savings rate is ${context.analytics.savingsRate}%. Target is 20%+.`;
-      }
-
-      return advice || "Financial systems operational. No critical alerts.";
+      return "Financial systems operational.";
     } catch {
       if (processedEntries.length > 0) {
         const total = processedEntries.reduce((s, e) => s + e.amount, 0);
-        return `Processed ${processedEntries.length} entr${processedEntries.length > 1 ? "ies" : "y"} totaling ₦${total.toLocaleString()}.`;
+        return `Recorded ${processedEntries.length} entr${processedEntries.length > 1 ? "ies" : "y"} totaling ₦${total.toLocaleString()}.`;
       }
       return "Financial systems operational.";
     }

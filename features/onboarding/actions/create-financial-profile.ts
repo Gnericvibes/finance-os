@@ -143,23 +143,93 @@ export async function createFinancialProfile(
     },
   });
 
+    // Build budget allocations from the user's stated monthly expenses
+  // scaled proportionally to fit within the PFOS operational budget
+  const statedExpenses: { category: string; amount: number }[] = [
+    { category: "Housing", amount: input.rentHousing ?? 0 },
+    { category: "Food", amount: input.food ?? 0 },
+    { category: "Transportation", amount: input.transport ?? 0 },
+    { category: "Utilities", amount: input.utilities ?? 0 },
+    { category: "Healthcare", amount: input.healthCare ?? 0 },
+    { category: "Education", amount: input.schoolFees ?? 0 },
+    { category: "Lifestyle", amount: input.subscriptions ?? 0 },
+    { category: "Misc", amount: input.miscellaneousExpenses ?? 0 },
+  ];
+
+  // Group subscriptions under "Misc" and add Emergency/Family as safety buffers
+  // Education and Healthcare have their own categories from onboarding
+  const totalStatedExpenses = statedExpenses.reduce((s, e) => s + e.amount, 0);
+
+  let allocationsToCreate: {
+    category: string;
+    percentage: number;
+    recommended: number;
+  }[];
+
+    if (totalStatedExpenses > 0) {
+    const operationalBudget = Number(blueprint.operationalAllocation);
+    const allocatableBudget = operationalBudget * 0.9;
+
+    if (totalStatedExpenses <= allocatableBudget) {
+      // User's stated expenses fit within the PFOS budget — use as-is
+      allocationsToCreate = statedExpenses.map((exp) => {
+        const recommended = exp.amount;
+        return {
+          category: exp.category,
+          percentage: operationalBudget > 0 ? recommended / operationalBudget : 0,
+          recommended: Math.round(recommended),
+        };
+      });
+    } else {
+      // User's stated expenses exceed the PFOS budget — scale down proportionally
+      allocationsToCreate = statedExpenses.map((exp) => {
+        const userRatio = exp.amount / totalStatedExpenses;
+        const recommended = allocatableBudget * userRatio;
+        return {
+          category: exp.category,
+          percentage: recommended / operationalBudget,
+          recommended: Math.round(recommended),
+        };
+      });
+    }
+
+    // Add Emergency and Family from remaining buffer
+    const allocatedSum = allocationsToCreate.reduce((s, a) => s + a.recommended, 0);
+    const bufferRemaining = operationalBudget > allocatedSum ? operationalBudget - allocatedSum : 0;
+    if (bufferRemaining > 0) {
+      allocationsToCreate.push({
+        category: "Emergency",
+        percentage: (bufferRemaining * 0.25) / operationalBudget,
+        recommended: Math.round(bufferRemaining * 0.25),
+      });
+      allocationsToCreate.push({
+        category: "Family",
+        percentage: (bufferRemaining * 0.75) / operationalBudget,
+        recommended: Math.round(bufferRemaining * 0.75),
+      });
+    }
+  } else {
+    // Fallback: no stated expenses — use generic PFOS percentages
+    allocationsToCreate = [
+      { category: "Housing", percentage: 0.3, recommended: blueprint.operationalAllocation * 0.3 },
+      { category: "Food", percentage: 0.15, recommended: blueprint.operationalAllocation * 0.15 },
+      { category: "Transportation", percentage: 0.1, recommended: blueprint.operationalAllocation * 0.1 },
+      { category: "Utilities", percentage: 0.07, recommended: blueprint.operationalAllocation * 0.07 },
+      { category: "Healthcare", percentage: 0.05, recommended: blueprint.operationalAllocation * 0.05 },
+      { category: "Lifestyle", percentage: 0.05, recommended: blueprint.operationalAllocation * 0.05 },
+      { category: "Emergency", percentage: 0.05, recommended: blueprint.operationalAllocation * 0.05 },
+      { category: "Education", percentage: 0.08, recommended: blueprint.operationalAllocation * 0.08 },
+      { category: "Family", percentage: 0.1, recommended: blueprint.operationalAllocation * 0.1 },
+      { category: "Misc", percentage: 0.05, recommended: blueprint.operationalAllocation * 0.05 },
+    ];
+  }
+
   await db.budgetAllocation.createMany({
-    data: [
-      { category: "Housing", percentage: 0.3 },
-      { category: "Food", percentage: 0.15 },
-      { category: "Transportation", percentage: 0.1 },
-      { category: "Utilities", percentage: 0.07 },
-      { category: "Healthcare", percentage: 0.05 },
-      { category: "Lifestyle", percentage: 0.05 },
-      { category: "Emergency", percentage: 0.05 },
-      { category: "Education", percentage: 0.08 },
-      { category: "Family", percentage: 0.1 },
-      { category: "Misc", percentage: 0.05 },
-    ].map((item) => ({
+    data: allocationsToCreate.map((item) => ({
       userId: input.userId,
       category: item.category,
       percentage: item.percentage,
-      recommended: blueprint.operationalAllocation * item.percentage,
+      recommended: Math.round(item.recommended),
       actual: 0,
     })),
   });

@@ -64,7 +64,7 @@ export async function sendMessage(
     );
   }
 
-  /*
+    /*
    -----------------------------------
    SAVE USER MESSAGE
    -----------------------------------
@@ -79,6 +79,31 @@ export async function sendMessage(
       conversationId,
     },
   });
+
+  /*
+   -----------------------------------
+   AUTO-TITLE CONVERSATION
+   Sets a title from the first user message if still untitled
+   -----------------------------------
+  */
+
+  if (!conversation.title || conversation.title === "New Conversation") {
+    const messageCount = await db.chatMessage.count({
+      where: { conversationId, role: "user" },
+    });
+
+    if (messageCount <= 1) {
+      // Generate a short title from the first message
+      const shortTitle = content.length > 50
+        ? content.substring(0, 47).trimEnd() + "..."
+        : content;
+
+      await db.conversation.update({
+        where: { id: conversationId },
+        data: { title: shortTitle, updatedAt: new Date() },
+      });
+    }
+  }
 
     /* TODO
    -----------------------------------
@@ -127,6 +152,38 @@ export async function sendMessage(
     );
   }
 
+
+    /*
+   -----------------------------------
+   SYNC ALLOCATION ACTUALS
+   -----------------------------------
+  */
+
+  if (parsed.entries.length > 0) {
+    try {
+      const { DashboardEngine } = await import(
+        "@/features/dashboard/services/dashboard-engine"
+      );
+
+      const allEntries = await db.entry.findMany({
+        where: { userId: session.user.id },
+        include: { category: true },
+      });
+
+      const engineEntries = allEntries.map((e) => ({
+        type: e.type as string,
+        amount: Number(e.amount),
+        category: e.category?.name ?? "Uncategorized",
+      }));
+
+      await DashboardEngine.refreshAllocationActuals(
+        session.user.id,
+        engineEntries
+      );
+    } catch (e) {
+      console.error("Failed to sync allocation actuals:", e);
+    }
+  }
 
   /*
    -----------------------------------
@@ -214,7 +271,7 @@ export async function sendMessage(
         dependentsCount: latestProfile.dependentsCount,
       });
 
-      await retryTransaction(async (tx) => {
+            await retryTransaction(async (tx) => {
         await tx.financialBlueprint.updateMany({
           where: {
             userId: session.user.id,
@@ -260,6 +317,68 @@ export async function sendMessage(
           },
         });
       });
+
+            // Sync BudgetAllocation.recommended to match the new operational budget
+            const statedExpenses: { category: string; amount: number }[] = [
+              { category: "Housing", amount: Number(expenseProfile?.rentHousing ?? 0) },
+              { category: "Food", amount: Number(expenseProfile?.food ?? 0) },
+              { category: "Transportation", amount: Number(expenseProfile?.transport ?? 0) },
+              { category: "Utilities", amount: Number(expenseProfile?.utilities ?? 0) },
+              { category: "Healthcare", amount: Number(expenseProfile?.healthCare ?? 0) },
+              { category: "Education", amount: Number(expenseProfile?.schoolFees ?? 0) },
+              { category: "Lifestyle", amount: Number(expenseProfile?.subscriptions ?? 0) },
+              { category: "Misc", amount: Number(expenseProfile?.miscellaneousExpenses ?? 0) },
+            ];
+
+            const totalStated = statedExpenses.reduce((s, e) => s + e.amount, 0);
+            const newOpBudget = Number(generated.operationalAllocation);
+
+            if (totalStated > 0 && newOpBudget > 0) {
+              const allocatableBudget = newOpBudget * 0.9;
+
+              let updatedAllocations: { category: string; recommended: number }[];
+
+              if (totalStated <= allocatableBudget) {
+                // Use stated amounts directly
+                updatedAllocations = statedExpenses.map((exp) => ({
+                  category: exp.category,
+                  recommended: Math.round(exp.amount),
+                }));
+              } else {
+                // Scale down proportionally
+                updatedAllocations = statedExpenses.map((exp) => {
+                  const userRatio = exp.amount / totalStated;
+                  return {
+                    category: exp.category,
+                    recommended: Math.round(allocatableBudget * userRatio),
+                  };
+                });
+              }
+
+              for (const item of updatedAllocations) {
+                await db.budgetAllocation.updateMany({
+                  where: { userId: session.user.id, category: item.category },
+                  data: {
+                    recommended: item.recommended,
+                    percentage: newOpBudget > 0 ? item.recommended / newOpBudget : 0,
+                  },
+                });
+              }
+
+              const allocatedSum = updatedAllocations.reduce((s, a) => s + a.recommended, 0);
+              const bufferRemaining = newOpBudget > allocatedSum ? newOpBudget - allocatedSum : 0;
+
+              if (bufferRemaining > 0) {
+                await db.budgetAllocation.updateMany({
+                  where: { userId: session.user.id, category: "Emergency" },
+                  data: { recommended: Math.round(bufferRemaining * 0.25) },
+                });
+                await db.budgetAllocation.updateMany({
+                  where: { userId: session.user.id, category: "Family" },
+                  data: { recommended: Math.round(bufferRemaining * 0.75) },
+                });
+              }
+            }
     }
   }
 
@@ -366,21 +485,27 @@ export async function sendMessage(
 
 
     /*
-   -----------------------------------
-   SAVE AI MESSAGE
-   -----------------------------------
-  */
+     -----------------------------------
+     SAVE AI MESSAGE & UPDATE TIMESTAMP
+     -----------------------------------
+    */
 
-  await db.chatMessage.create({
-    data: {
-      role: "assistant",
+    await db.chatMessage.create({
+      data: {
+        role: "assistant",
 
-      content:
-        assistantResponse,
+        content:
+          assistantResponse,
 
-      conversationId,
-    },
-  });
+        conversationId,
+      },
+    });
+
+    // Bump updatedAt so conversation sorts to top in history
+    await db.conversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    });
 
   /*
    -----------------------------------

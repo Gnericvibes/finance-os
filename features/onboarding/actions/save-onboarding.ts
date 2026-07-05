@@ -245,6 +245,105 @@ Goal: ${values.financialGoal}
   );
 
 
+    /*
+   -----------------------------------
+   SEED BUDGET ALLOCATIONS
+   -----------------------------------
+  */
+
+  const existingAllocations = await db.budgetAllocation.count({
+    where: { userId: user.id },
+  });
+
+    if (existingAllocations === 0) {
+      const statedExpenses: { category: string; amount: number }[] = [
+        { category: "Housing", amount: Number(values.rentHousing || 0) },
+        { category: "Food", amount: Number(values.food || 0) },
+        { category: "Transportation", amount: Number(values.transport || 0) },
+        { category: "Utilities", amount: Number(values.utilities || 0) },
+        { category: "Healthcare", amount: Number(values.healthCare || 0) },
+        { category: "Education", amount: Number(values.schoolFees || 0) },
+        { category: "Lifestyle", amount: Number(values.subscriptions || 0) },
+        { category: "Misc", amount: Number(values.miscellaneousExpenses || 0) },
+      ];
+
+      const totalStatedExpenses = statedExpenses.reduce((s, e) => s + e.amount, 0);
+      const operationalBudget = Number(blueprint.operationalAllocation);
+
+      let allocationsToCreate: {
+        category: string;
+        percentage: number;
+        recommended: number;
+      }[];
+
+      if (totalStatedExpenses > 0) {
+        const allocatableBudget = operationalBudget * 0.9;
+
+        if (totalStatedExpenses <= allocatableBudget) {
+          // User's stated expenses fit within PFOS budget — use as-is
+          allocationsToCreate = statedExpenses.map((exp) => {
+            const recommended = exp.amount;
+            return {
+              category: exp.category,
+              percentage: operationalBudget > 0 ? recommended / operationalBudget : 0,
+              recommended: Math.round(recommended),
+            };
+          });
+        } else {
+          // User's stated expenses exceed PFOS budget — scale down proportionally
+          allocationsToCreate = statedExpenses.map((exp) => {
+            const userRatio = exp.amount / totalStatedExpenses;
+            const recommended = allocatableBudget * userRatio;
+            return {
+              category: exp.category,
+              percentage: recommended / operationalBudget,
+              recommended: Math.round(recommended),
+            };
+          });
+        }
+
+        // Add Emergency and Family from remaining buffer
+        const allocatedSum = allocationsToCreate.reduce((s, a) => s + a.recommended, 0);
+        const bufferRemaining = operationalBudget > allocatedSum ? operationalBudget - allocatedSum : 0;
+        if (bufferRemaining > 0) {
+          allocationsToCreate.push({
+            category: "Emergency",
+            percentage: (bufferRemaining * 0.25) / operationalBudget,
+            recommended: Math.round(bufferRemaining * 0.25),
+          });
+          allocationsToCreate.push({
+            category: "Family",
+            percentage: (bufferRemaining * 0.75) / operationalBudget,
+            recommended: Math.round(bufferRemaining * 0.75),
+          });
+        }
+      } else {
+        // Fallback: generic PFOS percentages
+        allocationsToCreate = [
+          { category: "Housing", percentage: 0.3, recommended: Math.round(operationalBudget * 0.3) },
+          { category: "Food", percentage: 0.15, recommended: Math.round(operationalBudget * 0.15) },
+          { category: "Transportation", percentage: 0.1, recommended: Math.round(operationalBudget * 0.1) },
+          { category: "Utilities", percentage: 0.07, recommended: Math.round(operationalBudget * 0.07) },
+          { category: "Healthcare", percentage: 0.05, recommended: Math.round(operationalBudget * 0.05) },
+          { category: "Lifestyle", percentage: 0.05, recommended: Math.round(operationalBudget * 0.05) },
+          { category: "Emergency", percentage: 0.05, recommended: Math.round(operationalBudget * 0.05) },
+          { category: "Education", percentage: 0.08, recommended: Math.round(operationalBudget * 0.08) },
+          { category: "Family", percentage: 0.1, recommended: Math.round(operationalBudget * 0.1) },
+          { category: "Misc", percentage: 0.05, recommended: Math.round(operationalBudget * 0.05) },
+        ];
+      }
+
+      await db.budgetAllocation.createMany({
+        data: allocationsToCreate.map((item) => ({
+          userId: user.id,
+          category: item.category,
+          percentage: item.percentage,
+          recommended: item.recommended,
+          actual: 0,
+        })),
+      });
+    }
+
   return {
     success: true,
     financialProfileId: financialProfile.id,

@@ -4,8 +4,6 @@ import { useMemo, useState } from "react";
 
 import { AnalyticsChart } from "@/features/analytics/components/analytics-chart";
 
-import { AnalyticsFilters } from "@/features/analytics/components/analytics-filters";
-
 import { AnalyticsSearch } from "@/features/analytics/components/analytics-search";
 
 import { Pagination } from "./pagination";
@@ -40,10 +38,7 @@ export function AnalyticsClient({
    -----------------------------------
   */
 
-  const [search, setSearch] =
-    useState("");
-
-  const [category, setCategory] =
+        const [search, setSearch] =
     useState("");
 
   const [currentPage, setCurrentPage] =
@@ -59,7 +54,7 @@ export function AnalyticsClient({
     useMemo(() => {
       return entries.filter(
         (entry) => {
-          const matchesSearch =
+                    const matchesSearch =
             entry.title
               .toLowerCase()
               .includes(
@@ -71,21 +66,12 @@ export function AnalyticsClient({
                 search.toLowerCase()
               );
 
-          const matchesCategory =
-            !category ||
-            entry.category ===
-              category;
-
-          return (
-            matchesSearch &&
-            matchesCategory
-          );
+          return matchesSearch;
         }
       );
     }, [
       entries,
       search,
-      category,
     ]);
 
   /*
@@ -223,18 +209,10 @@ export function AnalyticsClient({
    -----------------------------------
   */
 
-  function handleSearch(
+        function handleSearch(
     value: string
   ) {
     setSearch(value);
-
-    setCurrentPage(1);
-  }
-
-  function handleCategory(
-    value: string
-  ) {
-    setCategory(value);
 
     setCurrentPage(1);
   }
@@ -256,17 +234,7 @@ export function AnalyticsClient({
               }
             />
 
-      {/* FILTERS */}
-
-      <AnalyticsFilters
-        category={category}
-        onCategoryChange={
-          handleCategory
-        }
-        type={type}
-      />
-
-      {/* TOTAL */}
+            {/* TOTAL */}
 
       <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
         <p className="text-sm text-zinc-400">

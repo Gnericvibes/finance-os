@@ -77,15 +77,40 @@ export async function createEntry(
     });
 
 
+        // Sync budget allocation actuals
+    try {
+      const { DashboardEngine } = await import(
+        "@/features/dashboard/services/dashboard-engine"
+      );
+
+      const allEntries = await db.entry.findMany({
+        where: { userId: session.user.id },
+        include: { category: true },
+      });
+
+      const engineEntries = allEntries.map((e) => ({
+        type: e.type as string,
+        amount: Number(e.amount),
+        category: e.category?.name ?? "Uncategorized",
+      }));
+
+      await DashboardEngine.refreshAllocationActuals(
+        session.user.id,
+        engineEntries
+      );
+    } catch (e) {
+      console.error("Failed to sync allocation actuals:", e);
+    }
+
     revalidatePath("/dashboard");
 
     /*
-     -----------------------------------
-     SUCCESS
-     -----------------------------------
-    */
+   -----------------------------------
+   SUCCESS
+   -----------------------------------
+  */
 
-        return {
+    return {
       success: true,
       entry: {
         ...entry,

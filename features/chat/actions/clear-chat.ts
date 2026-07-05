@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
  -----------------------------------
  CLEAR CHAT MESSAGES
  -----------------------------------
- Only deletes chat messages, NOT entries or financial data.
+ Clears messages and creates a fresh conversation.
 -----------------------------------
 */
 
@@ -40,5 +40,16 @@ export async function clearChat(conversationId: string) {
     },
   });
 
-  return { success: true };
+  // Create a fresh conversation for the user to continue
+  const newConversation = await db.conversation.create({
+    data: {
+      userId: session.user.id,
+      title: "New Conversation",
+    },
+    include: {
+      messages: true,
+    },
+  });
+
+  return { success: true, newConversation };
 }
