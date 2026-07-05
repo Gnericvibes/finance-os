@@ -4,20 +4,12 @@ import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { loadUserFinancialData } from "@/lib/load-user-financial-data";
 
 import { BudgetEngine } from "@/features/budgets/services/budget-engine";
 
 export default async function BudgetsPage() {
-  /*
-   -----------------------------------
-   SESSION
-   -----------------------------------
-  */
-
-  const session =
-    await auth.api.getSession({
-      headers: await headers(),
-    });
+  const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session?.user) {
     redirect("/sign-in");
@@ -25,20 +17,11 @@ export default async function BudgetsPage() {
 
   /*
    -----------------------------------
-   FETCH BLUEPRINT
+   BATCH LOAD DATA
    -----------------------------------
   */
 
-      const blueprint = await db.financialBlueprint.findFirst({
-    where: {
-      userId: session.user.id,
-      isActive: true,
-    },
-    orderBy: {
-      version: "desc",
-    },
-  });
-
+  const { blueprint, entryData } = await loadUserFinancialData(session.user.id);
 
   const blueprintData = blueprint
     ? {
@@ -49,54 +32,19 @@ export default async function BudgetsPage() {
       }
     : undefined;
 
-
   /*
    -----------------------------------
-   FETCH BUDGETS
+   FETCH BUDGETS (only remaining separate query)
    -----------------------------------
   */
 
-  const budgets =
-    await db.budget.findMany({
-      where: {
-        userId: session.user.id,
-      },
-
-            include: {
-        categories: {
-          include: {
-            category: true,
-          },
-        },
-      },
-
-
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-  /*
-   -----------------------------------
-   FETCH ENTRIES
-   -----------------------------------
-  */
-
-    const entries =
-    await db.entry.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      include: {
-        category: true,
-      },
-    });
-
-  const entryData = entries.map((entry) => ({
-    type: entry.type,
-    amount: Number(entry.amount),
-    category: entry.category?.name ?? "Uncategorized",
-  }));
+  const budgets = await db.budget.findMany({
+    where: { userId: session.user.id },
+    include: {
+      categories: { include: { category: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
 
   /*

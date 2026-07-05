@@ -165,10 +165,10 @@ export async function sendMessage(
         "@/features/dashboard/services/dashboard-engine"
       );
 
-      const allEntries = await db.entry.findMany({
-        where: { userId: session.user.id },
-        include: { category: true },
-      });
+            const allEntries = await db.entry.findMany({
+              where: { userId: session.user.id },
+              include: { category: { select: { name: true } } },
+            });
 
       const engineEntries = allEntries.map((e) => ({
         type: e.type as string,
@@ -385,104 +385,16 @@ export async function sendMessage(
 
 
     /*
-   -----------------------------------
-   GENERATE AI ADVISORY RESPONSE
-   -----------------------------------
-  */
+     -----------------------------------
+     GENERATE AI ADVISORY RESPONSE
+     -----------------------------------
+    */
 
-  let assistantResponse = await AIAdvisor.generateAdvice(
-    session.user.id,
-    content,
-    parsed.entries
-  );
-
-  /*
-   -----------------------------------
-   FETCH USER DATA
-   -----------------------------------
-  */
-
-    const profile =
-    await db.financialProfile.findUnique({
-      where: {
-        userId: session.user.id,
-      },
-    });
-
-    const blueprint = await db.financialBlueprint.findFirst({
-    where: {
-      userId: session.user.id,
-      isActive: true,
-    },
-    orderBy: {
-      version: "desc",
-    },
-  });
-
-
-  const blueprintData = blueprint
-    ? {
-        operationalPercentage: blueprint.operationalPercentage,
-        debtPercentage: blueprint.debtPercentage,
-        emergencyPercentage: blueprint.emergencyPercentage,
-        investmentPercentage: blueprint.investmentPercentage,
-      }
-    : undefined;
-
-
-  /*
-   -----------------------------------
-   FETCH ACTIVE BUDGET
-   -----------------------------------
-  */
-
-  const now = new Date();
-
-  const activeBudget =
-    await db.budget.findFirst({
-      where: {
-        userId:
-          session.user.id,
-
-        month:
-          now.getMonth() + 1,
-
-        year:
-          now.getFullYear(),
-      },
-
-            include: {
-        categories: {
-          include: {
-            category: true,
-          },
-        },
-      },
-
-    });
-
-  /*
-   -----------------------------------
-   FETCH USER ENTRIES
-   -----------------------------------
-  */
-
-    const allEntries =
-    await db.entry.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      include: {
-        category: true,
-      },
-    });
-
-  const allEntryData = allEntries.map((entry) => ({
-    type: entry.type,
-    amount: Number(entry.amount),
-    category: entry.category?.name ?? "Uncategorized",
-  }));
-
+    let assistantResponse = await AIAdvisor.generateAdvice(
+      session.user.id,
+      content,
+      parsed.entries
+    );
 
     /*
      -----------------------------------
@@ -490,31 +402,31 @@ export async function sendMessage(
      -----------------------------------
     */
 
-    await db.chatMessage.create({
-      data: {
-        role: "assistant",
+      await db.chatMessage.create({
+        data: {
+          role: "assistant",
 
-        content:
-          assistantResponse,
+          content:
+            assistantResponse,
 
-        conversationId,
-      },
-    });
+          conversationId,
+        },
+      });
 
-    // Bump updatedAt so conversation sorts to top in history
-    await db.conversation.update({
-      where: { id: conversationId },
-      data: { updatedAt: new Date() },
-    });
+      // Bump updatedAt so conversation sorts to top in history
+      await db.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      });
 
-  /*
-   -----------------------------------
-   RETURN
-   -----------------------------------
-  */
+    /*
+     -----------------------------------
+     RETURN
+     -----------------------------------
+    */
 
-    return {
-    success: true,
-    response: assistantResponse,
-  };
+      return {
+      success: true,
+      response: assistantResponse,
+    };
 }

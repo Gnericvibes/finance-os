@@ -6,6 +6,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ensureMonthlySnapshot } from "@/lib/ensure-monthly-snapshot";
+import { loadUserFinancialData, computeAllocationData } from "@/lib/load-user-financial-data";
 import { EntryForm } from "@/features/entries/components/entry-form";
 
 import {
@@ -15,72 +16,21 @@ import {
 } from "@/features/dashboard/services/dashboard-engine";
 
 export default async function DashboardPage() {
-  /*
-   -----------------------------------
-   GET SESSION
-   -----------------------------------
-  */
+  const session = await auth.api.getSession({ headers: await headers() });
 
-  const session =
-    await auth.api.getSession({
-      headers: await headers(),
-    });
-
-  /*
-   -----------------------------------
-   PROTECT ROUTE
-   -----------------------------------
-  */
-
-    if (!session?.user) {
+  if (!session?.user) {
     redirect("/sign-in");
   }
 
   await ensureMonthlySnapshot(session.user.id);
 
-
   /*
    -----------------------------------
-   FETCH ENTRIES
+   BATCH LOAD ALL DATA
    -----------------------------------
   */
 
-        const entries =
-    await db.entry.findMany({
-      where: {
-        userId: session.user.id,
-      },
-
-      include: {
-        category: true,
-      },
-
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    const normalizedEntries = entries.map((entry) => ({
-    id: entry.id,
-    type: entry.type,
-    title: entry.title,
-    description: entry.description,
-    amount: Number(entry.amount),
-    isDeleted: entry.isDeleted,
-    createdAt: entry.createdAt.toISOString(),
-    updatedAt: entry.updatedAt.toISOString(),
-    userId: entry.userId,
-    accountId: entry.accountId,
-    categoryId: entry.categoryId,
-    categoryName: entry.category?.name ?? "Uncategorized",
-  }));
-
-  const engineEntries: DashboardEntry[] = normalizedEntries.map((entry) => ({
-    type: entry.type,
-    amount: entry.amount,
-    category: entry.categoryName,
-  }));
-
+  const { profile, blueprint, expenseProfile, entryData } = await loadUserFinancialData(session.user.id);
 
   /*
    -----------------------------------
@@ -88,41 +38,20 @@ export default async function DashboardPage() {
    -----------------------------------
   */
 
-    const income = DashboardEngine.getIncome(engineEntries);
+  const income = DashboardEngine.getIncome(entryData);
+  const expenses = DashboardEngine.getExpenses(entryData);
+  const investments = DashboardEngine.getInvestments(entryData);
+  const cashFlow = DashboardEngine.getCashFlow(entryData);
+  const savingsRate = DashboardEngine.getSavingsRate(entryData);
 
-  const expenses = DashboardEngine.getExpenses(engineEntries);
-
-  const investments = DashboardEngine.getInvestments(engineEntries);
-
-  const cashFlow = DashboardEngine.getCashFlow(engineEntries);
-
-  const savingsRate = DashboardEngine.getSavingsRate(engineEntries);
-
-  const totalDebtPaid = engineEntries
+  const totalDebtPaid = entryData
     .filter((e) => e.type === "DEBT_PAYMENT")
     .reduce((s, e) => s + e.amount, 0);
 
-  const profile = await db.financialProfile.findUnique({
-    where: { userId: session.user.id },
-  });
-
   const totalDebtOwed = Number(profile?.totalDebt ?? 0);
+  const remainingDebt = Math.max(0, totalDebtOwed - totalDebtPaid);
 
-const remainingDebt = Math.max(0, totalDebtOwed - totalDebtPaid);
-
-
-
-
-
-
-    /*
-   -----------------------------------
-   SPENDING BREAKDOWN
-   -----------------------------------
-  */
-
-    const expenseBreakdown =
-    DashboardEngine.getExpenseBreakdown(engineEntries);
+  const expenseBreakdown = DashboardEngine.getExpenseBreakdown(entryData);
 
   /*
    -----------------------------------
@@ -130,134 +59,44 @@ const remainingDebt = Math.max(0, totalDebtOwed - totalDebtPaid);
    -----------------------------------
   */
 
-    const blueprint = await db.financialBlueprint.findFirst({
-    where: { userId: session.user.id, isActive: true },
-    orderBy: { version: "desc" },
-  });
+  const totalOperationalBudget = blueprint ? Number(blueprint.operationalAllocation) : 0;
 
-  const totalOperationalBudget = blueprint
-    ? Number(blueprint.operationalAllocation)
-    : 0;
+  const allocationData = computeAllocationData(expenseProfile, totalOperationalBudget);
 
-  // Compute recommended amounts from HouseholdExpenseProfile (user's stated expenses)
-  // scaled to fit within the PFOS operational budget
-  const expenseProfile = await db.householdExpenseProfile.findUnique({
-    where: { userId: session.user.id },
-  });
+  let allocationComparisons: AllocationComparison[] = [];
 
-  const statedExpenses: { category: string; amount: number }[] = [
-    { category: "Housing", amount: Number(expenseProfile?.rentHousing ?? 0) },
-    { category: "Food", amount: Number(expenseProfile?.food ?? 0) },
-    { category: "Transportation", amount: Number(expenseProfile?.transport ?? 0) },
-    { category: "Utilities", amount: Number(expenseProfile?.utilities ?? 0) },
-    { category: "Healthcare", amount: Number(expenseProfile?.healthCare ?? 0) },
-    { category: "Education", amount: Number(expenseProfile?.schoolFees ?? 0) },
-    { category: "Lifestyle", amount: Number(expenseProfile?.subscriptions ?? 0) },
-    { category: "Misc", amount: Number(expenseProfile?.miscellaneousExpenses ?? 0) },
-  ];
-
-  const totalStated = statedExpenses.reduce((s, e) => s + e.amount, 0);
-
-  // Build allocation data with live recomputed recommended amounts
-  let allocationData: { category: string; recommended: number; percentage: number }[] = [];
-
-    if (totalStated > 0 && totalOperationalBudget > 0) {
-    // Use the user's stated expenses directly as the recommended amounts
-    // but cap them so they don't exceed the PFOS operational budget
-    // (reserve 10% of the operational budget for Emergency & Family buffers)
-    const allocatableBudget = totalOperationalBudget * 0.9;
-
-    if (totalStated <= allocatableBudget) {
-      // User's stated expenses fit within the PFOS operational budget
-      // Use stated amounts directly — no scaling needed
-      allocationData = statedExpenses.map((exp) => {
-        const recommended = Math.round(exp.amount);
-        return {
-          category: exp.category,
-          recommended,
-          percentage: recommended / totalOperationalBudget,
-        };
-      });
-    } else {
-      // User's stated expenses exceed the PFOS operational budget
-      // Scale down proportionally to fit
-      allocationData = statedExpenses.map((exp) => {
-        const userRatio = exp.amount / totalStated;
-        const recommended = Math.round(allocatableBudget * userRatio);
-        return {
-          category: exp.category,
-          recommended,
-          percentage: recommended / totalOperationalBudget,
-        };
-      });
-    }
-
-    const allocatedSum = allocationData.reduce((s, a) => s + a.recommended, 0);
-    const bufferRemaining = totalOperationalBudget - allocatedSum;
-
-    if (bufferRemaining > 0) {
-      allocationData.push({
-        category: "Emergency",
-        recommended: Math.round(bufferRemaining * 0.25),
-        percentage: (bufferRemaining * 0.25) / totalOperationalBudget,
-      });
-      allocationData.push({
-        category: "Family",
-        recommended: Math.round(bufferRemaining * 0.75),
-        percentage: (bufferRemaining * 0.75) / totalOperationalBudget,
-      });
-    }
-  } else {
-    // Fallback: use stored BudgetAllocation records with whatever recommended values they have
-    const budgetAllocations = await db.budgetAllocation.findMany({
-      where: { userId: session.user.id },
-    });
-
-    allocationData = budgetAllocations.map((a) => ({
-      category: a.category,
-      recommended: Number(a.recommended),
-      percentage: a.percentage,
+  if (allocationData.length > 0) {
+    allocationComparisons = DashboardEngine.compareWithAllocations(
+      expenseBreakdown,
+      allocationData,
+      totalOperationalBudget
+    );
+  } else if (expenseBreakdown.length > 0) {
+    allocationComparisons = expenseBreakdown.map((item) => ({
+      category: item.category,
+      recommended: 0,
+      actual: item.amount,
+      percentage: item.percentage,
+      recommendedPercentage: 0,
+      difference: item.amount,
+      differencePercentage: 100,
+      status: "CRITICAL" as const,
     }));
   }
 
-    let allocationComparisons: AllocationComparison[] = [];
+  const allocationAlerts = DashboardEngine.generateAllocationAlerts(allocationComparisons);
 
-    if (allocationData.length > 0) {
-      allocationComparisons = DashboardEngine.compareWithAllocations(
-        expenseBreakdown,
-        allocationData,
-        totalOperationalBudget
-      );
-    } else if (expenseBreakdown.length > 0) {
-      // No budget allocations yet, show raw expense breakdown as comparison with 0 recommended
-      allocationComparisons = expenseBreakdown.map((item) => ({
-        category: item.category,
-        recommended: 0,
-        actual: item.amount,
-        percentage: item.percentage,
-        recommendedPercentage: 0,
-        difference: item.amount,
-        differencePercentage: 100,
-        status: "CRITICAL" as const,
-      }));
-    }
-
-      const allocationAlerts =
-      DashboardEngine.generateAllocationAlerts(allocationComparisons);
-
-    // Sort: CRITICAL first (most overspent), then OVER, then by difference descending
-    const sortedComparisons = [...allocationComparisons].sort((a, b) => {
-      const statusRank: Record<string, number> = {
-        CRITICAL: 0,
-        OVER: 1,
-        ON_TRACK: 2,
-        UNDER: 3,
-      };
-      const rankDiff = (statusRank[a.status] ?? 99) - (statusRank[b.status] ?? 99);
-      if (rankDiff !== 0) return rankDiff;
-      // Within same status, sort by difference percentage descending (most over first)
-      return b.differencePercentage - a.differencePercentage;
-    });
+  const sortedComparisons = [...allocationComparisons].sort((a, b) => {
+    const statusRank: Record<string, number> = {
+      CRITICAL: 0,
+      OVER: 1,
+      ON_TRACK: 2,
+      UNDER: 3,
+    };
+    const rankDiff = (statusRank[a.status] ?? 99) - (statusRank[b.status] ?? 99);
+    if (rankDiff !== 0) return rankDiff;
+    return b.differencePercentage - a.differencePercentage;
+  });
 
 
 

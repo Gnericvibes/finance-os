@@ -77,15 +77,15 @@ export async function createEntry(
     });
 
 
-        // Sync budget allocation actuals
+                // Sync budget allocation actuals
     try {
       const { DashboardEngine } = await import(
         "@/features/dashboard/services/dashboard-engine"
       );
 
-      const allEntries = await db.entry.findMany({
+            const allEntries = await db.entry.findMany({
         where: { userId: session.user.id },
-        include: { category: true },
+        include: { category: { select: { name: true } } },
       });
 
       const engineEntries = allEntries.map((e) => ({

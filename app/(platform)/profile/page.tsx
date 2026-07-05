@@ -1,390 +1,261 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { getCurrentUser } from "@/lib/current-user";
+import { getCurrencySymbol } from "@/lib/currency";
+import { loadUserFinancialData } from "@/lib/load-user-financial-data";
 
-import { updateFinancialProfile } from "@/app/(platform)/profile/actions";
+import { ProfileForm } from "@/app/(platform)/profile/profile-form";
 
-const EMPLOYMENT_TYPES = [
-  "EMPLOYED",
-  "SELF_EMPLOYED",
-  "BUSINESS_OWNER",
-  "FREELANCER",
-  "STUDENT",
-  "UNEMPLOYED",
-  "RETIRED",
-] as const;
+export default async function ProfilePage() {
+  const user = await getCurrentUser();
 
-const MARITAL_STATUSES = [
-  "SINGLE",
-  "MARRIED",
-  "DIVORCED",
-  "WIDOWED",
-] as const;
+  if (!user) {
+    redirect("/sign-in");
+  }
 
-const INCOME_FREQUENCIES = [
-  "MONTHLY",
-  "WEEKLY",
-  "BI_WEEKLY",
-  "QUARTERLY",
-  "ANNUALLY",
-] as const;
+  const { profile, blueprint } = await loadUserFinancialData(user.id);
 
-const FINANCIAL_GOALS = [
-  "EMERGENCY_FUND",
-  "DEBT_FREEDOM",
-  "HOME_OWNERSHIP",
-  "BUSINESS_GROWTH",
-  "RETIREMENT",
-  "INVESTMENT",
-  "WEALTH_BUILDING",
-] as const;
+  if (!profile) {
+    redirect("/onboarding");
+  }
 
-const CURRENCIES = [
-  { code: "NGN", label: "Nigerian Naira (₦)" },
-  { code: "USD", label: "US Dollar ($)" },
-  { code: "GBP", label: "British Pound (£)" },
-  { code: "EUR", label: "Euro (€)" },
-  { code: "CAD", label: "Canadian Dollar (CA$)" },
-  { code: "AUD", label: "Australian Dollar (A$)" },
-  { code: "AED", label: "UAE Dirham (د.إ)" },
-  { code: "ZAR", label: "South African Rand (R)" },
-  { code: "KES", label: "Kenyan Shilling (KSh)" },
-  { code: "GHS", label: "Ghanaian Cedi (GH₵)" },
-];
+  const currencySymbol = getCurrencySymbol(profile.currency);
 
-interface ProfileFormProps {
-  userId: string;
-  profile: {
-    fullName: string;
-    employmentType: string;
-    maritalStatus: string;
-    hasDependents: boolean;
-    dependentsCount: number;
-    currency: string;
-    monthlyIncome: number;
-    additionalIncome: number;
-    incomeFrequency: string;
-    hasDebt: boolean;
-    totalDebt: number;
-    repaymentAmount: number;
-    debtDueDate: string;
-    mainFinancialGoal: string;
-    emergencySavingsGoal: number;
-    interestedInInvesting: boolean;
-  };
-}
+  // Compute estimated debt-free date
+  const now = new Date();
+  let estimatedDebtFree: Date | null = null;
+  let monthsToPayOff: number | null = null;
 
-export function ProfileForm({ userId, profile }: ProfileFormProps) {
-  const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
+  if (
+    profile.hasDebt &&
+    profile.totalDebt &&
+    Number(profile.totalDebt) > 0 &&
+    profile.repaymentAmount &&
+    Number(profile.repaymentAmount) > 0
+  ) {
+    monthsToPayOff = Math.ceil(Number(profile.totalDebt) / Number(profile.repaymentAmount));
+    estimatedDebtFree = new Date(now);
+    estimatedDebtFree.setMonth(estimatedDebtFree.getMonth() + monthsToPayOff);
+  }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formData = new FormData(event.currentTarget);
-
-    formData.set("hasDependents", formData.has("hasDependents") ? "true" : "false");
-    formData.set("hasDebt", formData.has("hasDebt") ? "true" : "false");
-    formData.set("interestedInInvesting", formData.has("interestedInInvesting") ? "true" : "false");
-
-    await updateFinancialProfile(formData);
-
-    setIsOpen(false);
-    router.refresh();
+  function formatDate(date: Date): string {
+    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden">
-      {/* TOGGLE BUTTON */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-6 hover:bg-zinc-900 transition-colors text-left"
-      >
-        <div>
-          <h2 className="text-base font-semibold text-white">Edit Profile</h2>
-          <p className="text-xs text-zinc-500 mt-1">Update your personal and financial details</p>
+    <main className="min-h-screen bg-black text-white p-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* HEADER */}
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Profile</h1>
+            <p className="text-sm text-zinc-500 mt-1">Your personal financial profile</p>
+          </div>
         </div>
-        <svg
-          className={`w-5 h-5 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
 
-      {/* FORM (collapsible) */}
-      {isOpen && (
-        <div className="border-t border-zinc-800 p-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <input type="hidden" name="userId" value={userId} />
+        {/* PERSONAL DETAILS */}
 
-            {/* FULL NAME */}
-            <div>
-              <label htmlFor="fullName" className="block text-sm text-zinc-400 mb-1">
-                Full Name
-              </label>
-              <input
-                id="fullName"
-                name="fullName"
-                type="text"
-                defaultValue={profile.fullName}
-                className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white"
-              />
-            </div>
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden">
+          <div className="p-6">
+            <h2 className="text-base font-semibold text-white mb-5">Personal Details</h2>
 
-            {/* EMPLOYMENT TYPE & MARITAL STATUS */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div>
-                <label htmlFor="employmentType" className="block text-sm text-zinc-400 mb-1">
-                  Employment Type
-                </label>
-                <select
-                  id="employmentType"
-                  name="employmentType"
-                  defaultValue={profile.employmentType}
-                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-                >
-                  {EMPLOYMENT_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                </select>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Name</p>
+                <p className="text-sm text-white font-medium mt-1">{profile.fullName}</p>
               </div>
-
               <div>
-                <label htmlFor="maritalStatus" className="block text-sm text-zinc-400 mb-1">
-                  Marital Status
-                </label>
-                <select
-                  id="maritalStatus"
-                  name="maritalStatus"
-                  defaultValue={profile.maritalStatus}
-                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-                >
-                  {MARITAL_STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {status.charAt(0) + status.slice(1).toLowerCase()}
-                    </option>
-                  ))}
-                </select>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Email</p>
+                <p className="text-sm text-white font-medium mt-1 truncate">{user.email}</p>
               </div>
-            </div>
-
-        {/* DEPENDENTS */}
-            <div className="space-y-3">
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  name="hasDependents"
-                  defaultChecked={profile.hasDependents}
-                  className="h-5 w-5 rounded border-zinc-800 bg-black text-white focus:ring-white"
-                />
-                <span className="text-sm text-zinc-400">Has Dependents</span>
-              </label>
-
               <div>
-                <label htmlFor="dependentsCount" className="block text-sm text-zinc-400 mb-1">
-                  Number of Dependents
-                </label>
-                <input
-                  id="dependentsCount"
-                  name="dependentsCount"
-                  type="number"
-                  min={0}
-                  defaultValue={profile.dependentsCount}
-                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-                />
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Employment</p>
+                <p className="text-sm text-white font-medium mt-1 capitalize">
+                  {profile.employmentType.replace(/_/g, " ").toLowerCase()}
+                </p>
               </div>
-            </div>
-
-            {/* CURRENCY */}
-            <div>
-              <label htmlFor="currency" className="block text-sm text-zinc-400 mb-1">
-                Currency
-              </label>
-              <select
-                id="currency"
-                name="currency"
-                defaultValue={profile.currency}
-                className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* INCOME */}
-            <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label htmlFor="monthlyIncome" className="block text-sm text-zinc-400 mb-1">
-                  Monthly Income
-                </label>
-                <input
-                  id="monthlyIncome"
-                  name="monthlyIncome"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={profile.monthlyIncome}
-                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="additionalIncome" className="block text-sm text-zinc-400 mb-1">
-                  Additional Income
-                </label>
-                <input
-                  id="additionalIncome"
-                  name="additionalIncome"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={profile.additionalIncome}
-                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="incomeFrequency" className="block text-sm text-zinc-400 mb-1">
-                  Income Frequency
-                </label>
-                <select
-                  id="incomeFrequency"
-                  name="incomeFrequency"
-                  defaultValue={profile.incomeFrequency}
-                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-                >
-                  {INCOME_FREQUENCIES.map((freq) => (
-                    <option key={freq} value={freq}>
-                      {freq.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                </select>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Marital Status</p>
+                <p className="text-sm text-white font-medium mt-1 capitalize">
+                  {profile.maritalStatus.toLowerCase()}
+                </p>
               </div>
             </div>
-
-            {/* DEBT */}
-            <div className="space-y-3">
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  name="hasDebt"
-                  defaultChecked={profile.hasDebt}
-                  className="h-5 w-5 rounded border-zinc-800 bg-black text-white focus:ring-white"
-                />
-                <span className="text-sm text-zinc-400">Has Debt</span>
-              </label>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="totalDebt" className="block text-sm text-zinc-400 mb-1">
-                    Total Debt
-                  </label>
-                  <input
-                    id="totalDebt"
-                    name="totalDebt"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    defaultValue={profile.totalDebt}
-                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="repaymentAmount" className="block text-sm text-zinc-400 mb-1">
-                    Monthly Repayment
-                  </label>
-                  <input
-                    id="repaymentAmount"
-                    name="repaymentAmount"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    defaultValue={profile.repaymentAmount}
-                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* GOALS */}
-            <div>
-              <label htmlFor="mainFinancialGoal" className="block text-sm text-zinc-400 mb-1">
-                Main Financial Goal
-              </label>
-              <select
-                id="mainFinancialGoal"
-                name="mainFinancialGoal"
-                defaultValue={profile.mainFinancialGoal}
-                className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-              >
-                {FINANCIAL_GOALS.map((goal) => (
-                  <option key={goal} value={goal}>
-                    {goal.replace(/_/g, " ")}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="emergencySavingsGoal" className="block text-sm text-zinc-400 mb-1">
-                  Emergency Savings Goal
-                </label>
-                <input
-                  id="emergencySavingsGoal"
-                  name="emergencySavingsGoal"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={profile.emergencySavingsGoal}
-                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white focus:outline-none focus:border-white"
-                />
-              </div>
-
-              <div className="flex items-end pb-3">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    name="interestedInInvesting"
-                    defaultChecked={profile.interestedInInvesting}
-                    className="h-5 w-5 rounded border-zinc-800 bg-black text-white focus:ring-white"
-                  />
-                  <span className="text-sm text-zinc-400">Interested in Investing</span>
-                </label>
-              </div>
-            </div>
-
-            {/* SUBMIT */}
-            <div className="flex gap-3 pt-2">
-              <button
-                type="submit"
-                className="flex-1 rounded-xl bg-white px-6 py-3 font-semibold text-black hover:bg-zinc-200 transition-colors"
-              >
-                Save Changes
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded-xl border border-zinc-800 px-6 py-3 font-medium text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* FINANCIAL OVERVIEW */}
+
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden">
+          <div className="p-6">
+            <h2 className="text-base font-semibold text-white mb-5">Financial Overview</h2>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Monthly Income</p>
+                <p className="text-lg font-semibold text-white mt-1">
+                  {currencySymbol}{Number(profile.monthlyIncome).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Additional Income</p>
+                <p className="text-sm text-white font-medium mt-1">
+                  {Number(profile.additionalIncome ?? 0) > 0
+                    ? `${currencySymbol}${Number(profile.additionalIncome).toLocaleString()}`
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Frequency</p>
+                <p className="text-sm text-white font-medium mt-1 capitalize">
+                  {profile.incomeFrequency.replace(/_/g, " ").toLowerCase()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Dependents</p>
+                <p className="text-sm text-white font-medium mt-1">
+                  {profile.hasDependents ? profile.dependentsCount : "None"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Currency</p>
+                <p className="text-sm text-white font-medium mt-1">
+                  {profile.currency} ({currencySymbol})
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Interested in Investing</p>
+                <p className="text-sm text-white font-medium mt-1">
+                  {profile.interestedInInvesting ? "Yes" : "No"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* DEBT & GOALS SIDE BY SIDE */}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* DEBT */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
+            <h2 className="text-base font-semibold text-white mb-5">Debt</h2>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Status</p>
+                <p className="text-sm text-white font-medium mt-1">
+                  {profile.hasDebt ? "Active" : "Debt Free"}
+                </p>
+              </div>
+              {profile.hasDebt && (
+                <>
+                  <div>
+                    <p className="text-xs text-zinc-500 uppercase tracking-wider">Total Debt</p>
+                    <p className="text-lg font-semibold text-white mt-1">
+                      {profile.totalDebt && Number(profile.totalDebt) > 0
+                        ? `${currencySymbol}${Number(profile.totalDebt).toLocaleString()}`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-500 uppercase tracking-wider">Monthly Repayment</p>
+                    <p className="text-sm text-white font-medium mt-1">
+                      {profile.repaymentAmount && Number(profile.repaymentAmount) > 0
+                        ? `${currencySymbol}${Number(profile.repaymentAmount).toLocaleString()}`
+                        : "—"}
+                    </p>
+                  </div>
+                  {profile.debtDueDate && (
+                    <div>
+                      <p className="text-xs text-zinc-500 uppercase tracking-wider">Due Date</p>
+                      <p className="text-sm text-white font-medium mt-1">
+                        {formatDate(new Date(profile.debtDueDate))}
+                      </p>
+                    </div>
+                  )}
+                  {estimatedDebtFree && monthsToPayOff !== null && !profile.debtDueDate && (
+                    <div>
+                      <p className="text-xs text-zinc-500 uppercase tracking-wider">
+                        Estimated Payoff
+                      </p>
+                      <p className="text-sm text-white font-medium mt-1">
+                        {formatDate(estimatedDebtFree)}
+                        <span className="text-xs text-zinc-500 ml-2">
+                          ({monthsToPayOff} months)
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* GOALS & HEALTH */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
+            <h2 className="text-base font-semibold text-white mb-5">Goals & Health</h2>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Main Goal</p>
+                <p className="text-sm text-white font-medium mt-1 capitalize">
+                  {profile.mainFinancialGoal.replace(/_/g, " ").toLowerCase()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Emergency Fund Target</p>
+                <p className="text-sm text-white font-medium mt-1">
+                  {profile.emergencySavingsGoal && Number(profile.emergencySavingsGoal) > 0
+                    ? `${currencySymbol}${Number(profile.emergencySavingsGoal).toLocaleString()}`
+                    : "Not set"}
+                </p>
+              </div>
+              {blueprint && (
+                <>
+                  <div className="pt-3 border-t border-zinc-800">
+                    <p className="text-xs text-zinc-500 uppercase tracking-wider">Financial Health Score</p>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <p className="text-2xl font-bold text-white">{blueprint.financialHealthScore}</p>
+                      <span className="text-xs text-zinc-500">/ 100</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-500 uppercase tracking-wider">Blueprint Mode</p>
+                    <p className="text-sm text-white font-medium mt-1 capitalize">
+                      {blueprint.blueprintMode.toLowerCase().replace(/_/g, " ")}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* EDIT PROFILE (inline toggle) */}
+
+        <ProfileForm
+          userId={user.id}
+          profile={{
+            fullName: profile.fullName,
+            employmentType: profile.employmentType,
+            maritalStatus: profile.maritalStatus,
+            hasDependents: profile.hasDependents,
+            dependentsCount: profile.dependentsCount,
+            currency: profile.currency,
+            monthlyIncome: Number(profile.monthlyIncome),
+            additionalIncome: Number(profile.additionalIncome ?? 0),
+            incomeFrequency: profile.incomeFrequency,
+            hasDebt: profile.hasDebt,
+            totalDebt: Number(profile.totalDebt ?? 0),
+            repaymentAmount: Number(profile.repaymentAmount ?? 0),
+            debtDueDate: profile.debtDueDate ? new Date(profile.debtDueDate).toISOString().split("T")[0] : "",
+            mainFinancialGoal: profile.mainFinancialGoal,
+            emergencySavingsGoal: Number(profile.emergencySavingsGoal ?? 0),
+            interestedInInvesting: profile.interestedInInvesting,
+          }}
+        />
+      </div>
+    </main>
   );
 }

@@ -68,6 +68,7 @@ interface ProfileFormProps {
     hasDebt: boolean;
     totalDebt: number;
     repaymentAmount: number;
+    debtDueDate: string;
     mainFinancialGoal: string;
     emergencySavingsGoal: number;
     interestedInInvesting: boolean;
