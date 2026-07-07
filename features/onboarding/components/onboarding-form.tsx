@@ -97,14 +97,14 @@ export function OnboardingForm() {
       const result = await saveOnboarding(values);
 
       if (!result?.success) {
-        alert("Unable to generate blueprint.");
+        alert("Unable to generate blueprint. Please try again.");
         return;
       }
 
-      router.push("/allocations");
+      window.location.href = "/allocations";
     } catch (error) {
-      console.error(error);
-      alert("Something went wrong.");
+      console.error("Onboarding submit error:", error);
+      alert("Something went wrong. Please try again.");
     }
   }
 
