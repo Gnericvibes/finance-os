@@ -21,7 +21,7 @@ export default function SignInPage() {
   const [error, setError] =
     useState("");
 
-  async function handleSignIn() {
+    async function handleSignIn() {
     try {
       setLoading(true);
 
@@ -46,9 +46,7 @@ export default function SignInPage() {
         return;
       }
 
-      router.push(
-        "/allocations"
-      );
+      window.location.href = "/allocations";
     } catch (error) {
       console.error(error);
 

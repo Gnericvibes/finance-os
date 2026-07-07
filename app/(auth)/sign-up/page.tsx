@@ -50,9 +50,7 @@ export default function SignUpPage() {
         return;
       }
 
-      router.push(
-        "/onboarding"
-      );
+            window.location.href = "/onboarding";
     } catch (error) {
       console.error(error);
 
