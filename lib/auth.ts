@@ -17,11 +17,10 @@ export const auth = betterAuth({
 
   plugins: [nextCookies()],
 
-  baseURL:
-    "http://localhost:3000",
+    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
 
   trustedOrigins: [
-    "http://localhost:3000",
+    process.env.BETTER_AUTH_URL || "http://localhost:3000",
   ],
 
   advanced: {
@@ -31,7 +30,8 @@ export const auth = betterAuth({
 
     defaultCookieAttributes: {
       sameSite: "lax",
-      secure: false,
+
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
     },
   },
