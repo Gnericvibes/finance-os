@@ -109,16 +109,16 @@ export default async function DashboardPage() {
   */
 
   return (
-    <main className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <main className="min-h-screen bg-black text-white p-6 lg:p-8 pt-16 lg:pt-8">
+      <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
         {/* HEADER */}
 
-        <div className="space-y-2">
-          <h1 className="text-5xl font-bold">
+        <div className="space-y-1">
+          <h1 className="text-3xl lg:text-5xl font-bold">
             Dashboard
           </h1>
 
-          <p className="text-zinc-400 text-lg">
+          <p className="text-zinc-400 text-base lg:text-lg">
             Welcome back{" "}
             {session.user.name ||
               "User"}
@@ -127,7 +127,7 @@ export default async function DashboardPage() {
 
         {/* LIVE ANALYTICS */}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-6">
           <Link href="/analytics/income" className="block">
             <AnalyticsCard
               title="Income"
@@ -312,12 +312,12 @@ function AnalyticsCard({
   value: string;
 }) {
   return (
-    <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6 hover:border-zinc-600 transition-all">
-      <p className="text-sm text-zinc-400">
+    <div className="border border-zinc-800 bg-zinc-950 rounded-2xl lg:rounded-3xl p-4 lg:p-6 hover:border-zinc-600 transition-all">
+      <p className="text-xs lg:text-sm text-zinc-400">
         {title}
       </p>
 
-      <h3 className="text-3xl font-bold mt-3 text-white">
+      <h3 className="text-xl lg:text-3xl font-bold mt-2 lg:mt-3 text-white">
         {value}
       </h3>
     </div>

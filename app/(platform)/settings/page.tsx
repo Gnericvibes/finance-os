@@ -13,13 +13,13 @@ export default async function SettingsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <main className="min-h-screen bg-black text-white p-6 lg:p-8 pt-16 lg:pt-8">
+      <div className="max-w-4xl mx-auto space-y-5 lg:space-y-6">
         {/* HEADER with Sign Out */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Settings</h1>
-            <p className="text-sm text-zinc-500 mt-1">Manage your account settings</p>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl lg:text-3xl font-bold text-white">Settings</h1>
+            <p className="text-xs lg:text-sm text-zinc-500 mt-1">Manage your account settings</p>
           </div>
           <SignOutButton />
         </div>
@@ -27,7 +27,7 @@ export default async function SettingsPage() {
         {/* ACCOUNT INFO */}
         <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
           <h2 className="text-base font-semibold text-white mb-5">Account</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 gap-5 lg:gap-6">
             <div>
               <p className="text-xs text-zinc-500 uppercase tracking-wider">Email</p>
               <p className="text-sm text-white font-medium mt-1 truncate">{user.email}</p>

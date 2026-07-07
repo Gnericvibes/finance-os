@@ -13,7 +13,7 @@ export function PlatformLayout({
     <div className="min-h-screen bg-black text-white">
       <Sidebar />
 
-      <main className="ml-[220px] h-screen overflow-y-auto">
+      <main className="lg:ml-[220px] px-4 lg:px-6 py-4 lg:py-6 min-h-screen overflow-y-auto">
         {children}
       </main>
     </div>

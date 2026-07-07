@@ -91,43 +91,43 @@ export default async function AllocationsPage() {
 
 
     return (
-    <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">
+        <main className="mx-auto max-w-5xl space-y-6 lg:space-y-8 px-4 lg:px-6 py-6 lg:py-10 pt-16 lg:pt-10">
 
       {/* HEADER */}
 
-      <section className="flex items-center justify-between">
+      <section className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-white">
+          <h1 className="text-3xl lg:text-4xl font-bold text-white">
             {userName} Blueprint
           </h1>
 
-          <p className="mt-2 text-zinc-400">
+          <p className="mt-1 lg:mt-2 text-sm lg:text-base text-zinc-400">
             Your personal financial operating system
           </p>
         </div>
 
         <a
           href="/dashboard"
-          className="rounded-xl bg-white px-6 py-3 font-semibold text-black hover:bg-zinc-200 transition-colors"
+          className="rounded-xl bg-white px-5 lg:px-6 py-2.5 lg:py-3 text-sm lg:text-base font-semibold text-black hover:bg-zinc-200 transition-colors"
         >
-          Go to Dashboard
+          Dashboard
         </a>
       </section>
 
       {/* INCOME */}
 
-      <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+      <section className="rounded-2xl lg:rounded-3xl border border-zinc-800 bg-zinc-950 p-5 lg:p-6">
 
-        <h2 className="text-xl font-semibold text-white">
+        <h2 className="text-lg lg:text-xl font-semibold text-white">
           Income Snapshot
         </h2>
 
-        <div className="mt-4 text-4xl font-bold text-white">
+        <div className="mt-3 lg:mt-4 text-3xl lg:text-4xl font-bold text-white">
           {currencySymbol}
           {baseIncome.toLocaleString()}
         </div>
 
-        <p className="mt-2 text-sm text-zinc-400">
+        <p className="mt-1 lg:mt-2 text-xs lg:text-sm text-zinc-400">
           Monthly income used for PFOS calculations
         </p>
 
@@ -188,13 +188,14 @@ export default async function AllocationsPage() {
 
       {/* PFOS STRUCTURE */}
 
-      <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+      <section className="rounded-2xl lg:rounded-3xl border border-zinc-800 bg-zinc-950 p-5 lg:p-6">
 
-        <h2 className="mb-6 text-xl font-semibold text-white">
+        <h2 className="mb-4 lg:mb-6 text-lg lg:text-xl font-semibold text-white">
           PFOS Structure
         </h2>
 
-        <table className="w-full">
+        <div className="overflow-x-auto -mx-5 lg:-mx-6">
+          <table className="w-full min-w-[400px] px-5 lg:px-6">
 
           <thead>
 
@@ -285,18 +286,20 @@ export default async function AllocationsPage() {
           </tbody>
 
         </table>
+        </div>
 
       </section>
 
       {/* LIVE ALLOCATIONS */}
 
-      <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+      <section className="rounded-2xl lg:rounded-3xl border border-zinc-800 bg-zinc-950 p-5 lg:p-6">
 
-        <h2 className="mb-6 text-xl font-semibold text-white">
+        <h2 className="mb-4 lg:mb-6 text-lg lg:text-xl font-semibold text-white">
           Allocation Breakdown
         </h2>
 
-        <table className="w-full">
+        <div className="overflow-x-auto -mx-5 lg:-mx-6">
+          <table className="w-full min-w-[400px] px-5 lg:px-6">
 
           <thead>
 
@@ -399,12 +402,13 @@ export default async function AllocationsPage() {
           </tbody>
 
         </table>
+        </div>
 
       </section>
 
       {/* INSIGHTS */}
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
 
         <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
 

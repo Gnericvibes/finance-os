@@ -43,8 +43,8 @@ export default async function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <main className="min-h-screen bg-black text-white p-6 lg:p-8 pt-16 lg:pt-8">
+      <div className="max-w-4xl mx-auto space-y-5 lg:space-y-6">
         {/* HEADER */}
 
         <div className="flex items-center justify-between">
@@ -60,7 +60,7 @@ export default async function ProfilePage() {
           <div className="p-6">
             <h2 className="text-base font-semibold text-white mb-5">Personal Details</h2>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 gap-5 lg:gap-6">
               <div>
                 <p className="text-xs text-zinc-500 uppercase tracking-wider">Name</p>
                 <p className="text-sm text-white font-medium mt-1">{profile.fullName}</p>

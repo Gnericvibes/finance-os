@@ -70,16 +70,16 @@ export default async function ChatPage() {
   */
 
   return (
-    <main className="min-h-screen bg-black text-white">
+        <main className="min-h-screen bg-black text-white pt-16 lg:pt-0">
       <div className="max-w-6xl mx-auto h-screen flex flex-col">
         {/* HEADER */}
 
-        <div className="border-b border-zinc-900 p-6">
-                    <h1 className="text-4xl font-bold">
+        <div className="border-b border-zinc-900 px-4 lg:px-6 py-4 lg:py-6">
+          <h1 className="text-3xl lg:text-4xl font-bold">
             FOS AI
           </h1>
 
-          <p className="text-zinc-400 mt-2">
+          <p className="text-zinc-400 mt-1 lg:mt-2 text-sm lg:text-base">
             AI-powered financial operating system
           </p>
         </div>

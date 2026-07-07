@@ -54,16 +54,16 @@ export default async function BudgetsPage() {
   */
 
   return (
-    <main className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+        <main className="min-h-screen bg-black text-white p-6 lg:p-8 pt-16 lg:pt-8">
+      <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
         {/* HEADER */}
 
-        <div className="space-y-3">
-          <h1 className="text-5xl font-bold">
+        <div className="space-y-2">
+          <h1 className="text-3xl lg:text-5xl font-bold">
             Budget Intelligence
           </h1>
 
-          <p className="text-zinc-400 text-lg">
+          <p className="text-zinc-400 text-sm lg:text-lg">
             Behavioral finance monitoring
             and PFOS allocation tracking
           </p>
