@@ -79,9 +79,9 @@ export default function SignUpPage() {
         </div>
 
         <div className="space-y-4">
-          <input
+                    <input
             type="text"
-            placeholder="Full Name"
+            placeholder="Username"
             className="w-full border border-zinc-800 bg-zinc-900 p-4 rounded-2xl outline-none focus:border-white transition"
             value={name}
             onChange={(e) =>
