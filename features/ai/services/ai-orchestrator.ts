@@ -1,12 +1,38 @@
-import OpenAI from "openai";
+import {
+  openai,
+  AI_MODEL,
+  AI_MAX_OUTPUT_TOKENS,
+  AI_MAX_INPUT_CHARS,
+  AI_TEMPERATURE,
+} from "@/lib/openai";
 
 import { FinancialContext } from "./financial-context";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 type AIContext = Awaited<ReturnType<typeof FinancialContext.build>>;
+
+// Keep the context sent to the model bounded so the prompt can't balloon.
+const MAX_BUDGET_ROWS = 25;
+
+// Only the financial signals the model needs - never the raw profile row.
+// Strips personally identifying fields (name, ids, timestamps) before the
+// context ever leaves our server for a third-party LLM.
+function redactContextForPrompt(context: AIContext) {
+  return {
+    stage: context.blueprint?.blueprintMode ?? "UNKNOWN",
+    currency: context.profile?.currency ?? "NGN",
+    allocationTargets: context.blueprint
+      ? {
+          operationalPercentage: context.blueprint.operationalPercentage,
+          debtPercentage: context.blueprint.debtPercentage,
+          investmentPercentage: context.blueprint.investmentPercentage,
+          emergencyPercentage: context.blueprint.emergencyPercentage,
+          financialHealthScore: context.blueprint.financialHealthScore,
+        }
+      : null,
+    analytics: context.analytics,
+    budgets: context.budgets.slice(0, MAX_BUDGET_ROWS),
+  };
+}
 
 
 export class AIOrchestrator {
@@ -30,6 +56,10 @@ export class AIOrchestrator {
       await FinancialContext.build(
         userId
       );
+
+    // Safeguard: never send more than the allowed number of input characters
+    // to the model (prevents prompt-stuffing and runaway token cost).
+    const safeMessage = message.slice(0, AI_MAX_INPUT_CHARS);
 
     /*
      -----------------------------------
@@ -58,7 +88,7 @@ You must:
 
 USER FINANCIAL PROFILE:
 
-${JSON.stringify(context, null, 2)}
+${JSON.stringify(redactContextForPrompt(context), null, 2)}
 
 `;
 
@@ -72,7 +102,7 @@ ${JSON.stringify(context, null, 2)}
       const response =
         await openai.chat.completions.create(
           {
-            model: "gpt-4.1-mini",
+            model: AI_MODEL,
 
             messages: [
               {
@@ -85,11 +115,14 @@ ${JSON.stringify(context, null, 2)}
               {
                 role: "user",
 
-                content: message,
+                content: safeMessage,
               },
             ],
 
-            temperature: 0.7,
+            temperature: AI_TEMPERATURE,
+
+            // Safeguard: cap output tokens so no single call runs away on cost.
+            max_tokens: AI_MAX_OUTPUT_TOKENS,
           }
         );
 
