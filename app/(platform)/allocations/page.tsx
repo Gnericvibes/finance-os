@@ -149,20 +149,20 @@ export default async function AllocationsPage() {
 
       </section>
 
-      {/* FINANCIAL HEALTH */}
+            {/* FINANCIAL HEALTH */}
 
-      <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+      <section className="rounded-2xl lg:rounded-3xl border border-zinc-800 bg-zinc-950 p-5 lg:p-6">
 
-        <h2 className="text-xl font-semibold text-white">
+        <h2 className="text-lg lg:text-xl font-semibold text-white">
           Financial Health
         </h2>
 
-        <div className="mt-6 flex items-center gap-6">
+        <div className="mt-6 flex items-center gap-8">
 
-          <div className="h-40 w-8 overflow-hidden rounded-full bg-zinc-800">
+          <div className="h-48 w-10 overflow-hidden rounded-full bg-zinc-800">
 
             <div
-              className="w-full bg-green-500"
+              className="w-full bg-green-500 transition-all duration-500"
               style={{
                 height: `${health}%`,
               }}
@@ -170,14 +170,18 @@ export default async function AllocationsPage() {
 
           </div>
 
-          <div>
+          <div className="space-y-1">
 
-            <div className="text-5xl font-bold text-white">
+            <div className="text-6xl font-bold text-white leading-none">
               {health}
             </div>
 
-            <div className="text-zinc-400">
+            <div className="text-base text-zinc-500">
               out of 100
+            </div>
+
+            <div className="text-sm text-zinc-400 mt-2">
+              {health >= 80 ? "Excellent" : health >= 60 ? "Good" : health >= 40 ? "Fair" : "Needs attention"}
             </div>
 
           </div>
@@ -194,8 +198,8 @@ export default async function AllocationsPage() {
           PFOS Structure
         </h2>
 
-        <div className="overflow-x-auto -mx-5 lg:-mx-6">
-          <table className="w-full min-w-[400px] px-5 lg:px-6">
+        <div className="overflow-x-auto -mx-5 lg:mx-0">
+          <table className="w-full min-w-[400px] lg:min-w-0 px-5 lg:px-0">
 
           <thead>
 
@@ -298,8 +302,8 @@ export default async function AllocationsPage() {
           Allocation Breakdown
         </h2>
 
-        <div className="overflow-x-auto -mx-5 lg:-mx-6">
-          <table className="w-full min-w-[400px] px-5 lg:px-6">
+        <div className="overflow-x-auto -mx-5 lg:mx-0">
+          <table className="w-full min-w-[400px] lg:min-w-0 px-5 lg:px-0">
 
           <thead>
 
@@ -408,15 +412,15 @@ export default async function AllocationsPage() {
 
       {/* INSIGHTS */}
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
 
-        <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+        <div className="rounded-2xl lg:rounded-3xl border border-zinc-800 bg-zinc-950 p-5 lg:p-6">
 
           <h3 className="font-semibold text-white">
             Emergency Reserve
           </h3>
 
-          <p className="mt-3 text-2xl font-bold text-white">
+          <p className="mt-3 text-xl lg:text-2xl font-bold text-white">
 
             {currencySymbol}
             {Number(
@@ -427,13 +431,13 @@ export default async function AllocationsPage() {
 
         </div>
 
-        <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+        <div className="rounded-2xl lg:rounded-3xl border border-zinc-800 bg-zinc-950 p-5 lg:p-6">
 
           <h3 className="font-semibold text-white">
             Debt Priority
           </h3>
 
-          <p className="mt-3 text-2xl font-bold text-white">
+          <p className="mt-3 text-xl lg:text-2xl font-bold text-white">
 
             {profile.hasDebt
               ? "High"
@@ -443,13 +447,13 @@ export default async function AllocationsPage() {
 
         </div>
 
-        <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+        <div className="rounded-2xl lg:rounded-3xl border border-zinc-800 bg-zinc-950 p-5 lg:p-6">
 
           <h3 className="font-semibold text-white">
             Investment Readiness
           </h3>
 
-          <p className="mt-3 text-2xl font-bold text-white">
+          <p className="mt-3 text-xl lg:text-2xl font-bold text-white">
 
             {health >= 70
               ? "Ready"
