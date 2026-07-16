@@ -127,22 +127,22 @@ export default async function DashboardPage() {
 
         {/* LIVE ANALYTICS */}
 
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-6">
-          <Link href="/analytics/income" className="block">
+                                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3 lg:gap-4">
+          <Link href="/analytics/income" className="block min-w-0">
             <AnalyticsCard
               title="Income"
               value={`₦${income.toLocaleString()}`}
             />
           </Link>
 
-          <Link href="/analytics/expenses" className="block">
+          <Link href="/analytics/expenses" className="block min-w-0">
             <AnalyticsCard
               title="Expenses"
               value={`₦${expenses.toLocaleString()}`}
             />
           </Link>
 
-          <Link href="/analytics/investments" className="block">
+          <Link href="/analytics/investments" className="block min-w-0">
             <AnalyticsCard
               title="Investments"
               value={`₦${investments.toLocaleString()}`}
@@ -160,7 +160,7 @@ export default async function DashboardPage() {
             value={`${savingsRate}%`}
           />
 
-          <Link href="/analytics/debt-payment" className="block">
+          <Link href="/analytics/debt-payment" className="block min-w-0">
             <AnalyticsCard
               title="Remaining Debt"
               value={`₦${remainingDebt.toLocaleString()}`}
@@ -231,20 +231,20 @@ export default async function DashboardPage() {
                     : "bg-green-500";
 
                 return (
-                  <div key={item.category} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-white">
+                                    <div key={item.category} className="space-y-2">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-white truncate">
                           {item.category}
                         </p>
 
-                        <p className="text-sm text-zinc-400">
+                        <p className="text-sm text-zinc-400 truncate">
                           ₦{item.actual.toLocaleString()} spent
                           {" / "}₦{item.recommended.toLocaleString()} allocated
                         </p>
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <p className={`font-bold ${statusColor}`}>
                           {item.differencePercentage > 0 ? "+" : ""}
                           {item.differencePercentage}%
@@ -312,12 +312,12 @@ function AnalyticsCard({
   value: string;
 }) {
   return (
-    <div className="border border-zinc-800 bg-zinc-950 rounded-2xl lg:rounded-3xl p-4 lg:p-6 hover:border-zinc-600 transition-all">
-      <p className="text-xs lg:text-sm text-zinc-400">
+    <div className="border border-zinc-800 bg-zinc-950 rounded-2xl lg:rounded-3xl p-4 lg:p-5 hover:border-zinc-600 transition-all min-w-0">
+      <p className="text-xs lg:text-sm text-zinc-400 truncate">
         {title}
       </p>
 
-      <h3 className="text-xl lg:text-3xl font-bold mt-2 lg:mt-3 text-white">
+      <h3 className="text-xl lg:text-2xl xl:text-3xl font-bold mt-2 lg:mt-3 text-white truncate">
         {value}
       </h3>
     </div>
