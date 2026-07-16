@@ -9,6 +9,8 @@ import {
 
 import { BudgetEngine } from "@/features/budgets/services/budget-engine";
 
+import { getCurrencySymbol } from "@/lib/currency";
+
 type BudgetAnalysis = ReturnType<typeof BudgetEngine.analyzeBudget>;
 
 export class FinancialContext {
@@ -116,13 +118,14 @@ export class FinancialContext {
      -----------------------------------
     */
 
-    return {
+        return {
       profile,
       blueprint,
       analytics: { income, expenses, investments, cashFlow, savingsRate },
       budgets: budgetAnalysis,
       allocationComparisons,
       allocationAlerts,
+      currencySymbol: getCurrencySymbol(profile?.currency),
     };
   }
 }

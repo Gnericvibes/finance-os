@@ -22,6 +22,7 @@ export class AIAdvisor {
       const budgets = context.budgets;
       const allocationComparisons = context.allocationComparisons;
       const allocationAlerts = context.allocationAlerts;
+      const currencySymbol = context.currencySymbol;
 
       const monthlyIncome = Number(profile?.monthlyIncome ?? 0);
       const totalDebt = Number(profile?.totalDebt ?? 0);
@@ -46,14 +47,14 @@ export class AIAdvisor {
       if (isEntryMessage) {
         const total = processedEntries.reduce((s, e) => s + e.amount, 0);
         const count = processedEntries.length;
-        let response = `Recorded ${count} entr${count > 1 ? "ies" : "y"} totaling ₦${total.toLocaleString()}.`;
+        let response = `Recorded ${count} entr${count > 1 ? "ies" : "y"} totaling ${currencySymbol}${total.toLocaleString()}.`;
 
         for (const entry of processedEntries) {
           const alloc = allocationComparisons.find(
             (a) => a.category.toLowerCase() === entry.category.toLowerCase()
           );
           if (alloc && (alloc.status === "OVER" || alloc.status === "CRITICAL")) {
-            response += ` ⚠️ You've now spent ₦${alloc.actual.toLocaleString()} on ${alloc.category} this month — ${alloc.differencePercentage}% above your ₦${alloc.recommended.toLocaleString()} budget.`;
+            response += ` ⚠️ You've now spent ${currencySymbol}${alloc.actual.toLocaleString()} on ${alloc.category} this month — ${alloc.differencePercentage}% above your ${currencySymbol}${alloc.recommended.toLocaleString()} budget.`;
           }
         }
 
@@ -83,7 +84,7 @@ RULES:
 - OVER or CRITICAL = problem, call it out.
 - Keep it concise but thorough.
 
-CURRENT STATE:
+CURRENT STATE (all amounts in ${currencySymbol}${profile?.currency || "NGN"}):
 ${JSON.stringify({
   monthlyIncome,
   totalDebt,
@@ -109,6 +110,8 @@ ${JSON.stringify({
     investments: actualInvestmentsThisMonth,
   },
   minimumInvestmentRequired: minimumTargetInvestment,
+  currency: profile?.currency || "NGN",
+  currencySymbol,
 }, null, 2)}`;
 
         const response = await deepseek.chat.completions.create({
@@ -129,7 +132,7 @@ ${JSON.stringify({
 
       const systemPrompt = `You are FOS AI. Answer the user's question based on their financial data. Be clear and direct.
 
-CURRENT STATE:
+CURRENT STATE (all amounts in ${currencySymbol}${profile?.currency || "NGN"}):
 ${JSON.stringify({
   monthlyIncome,
   totalDebt,
@@ -153,6 +156,8 @@ ${JSON.stringify({
     debtPayments: actualDebtPaidThisMonth,
     investments: actualInvestmentsThisMonth,
   },
+  currency: profile?.currency || "NGN",
+  currencySymbol,
 }, null, 2)}`;
 
       const response = await deepseek.chat.completions.create({
@@ -202,11 +207,12 @@ ${JSON.stringify({
   ): Promise<string> {
     try {
       const context = await FinancialContext.build(userId);
+      const cs = context.currencySymbol;
 
       if (processedEntries.length > 0) {
         const total = processedEntries.reduce((s, e) => s + e.amount, 0);
         const count = processedEntries.length;
-        let response = `Recorded ${count} entr${count > 1 ? "ies" : "y"} totaling ₦${total.toLocaleString()}.`;
+        let response = `Recorded ${count} entr${count > 1 ? "ies" : "y"} totaling ${cs}${total.toLocaleString()}.`;
 
         // Check for overspend on this specific entry's category
         for (const entry of processedEntries) {
@@ -214,7 +220,7 @@ ${JSON.stringify({
             (a) => a.category.toLowerCase() === entry.category.toLowerCase()
           );
           if (alloc && (alloc.status === "OVER" || alloc.status === "CRITICAL")) {
-            response += ` ⚠️ You've now spent ₦${alloc.actual.toLocaleString()} on ${alloc.category} this month — ${alloc.differencePercentage}% above your ₦${alloc.recommended.toLocaleString()} budget.`;
+            response += ` ⚠️ You've now spent ${cs}${alloc.actual.toLocaleString()} on ${alloc.category} this month — ${alloc.differencePercentage}% above your ${cs}${alloc.recommended.toLocaleString()} budget.`;
           }
         }
 
@@ -223,9 +229,10 @@ ${JSON.stringify({
 
       return "Financial systems operational.";
     } catch {
+      const cs = "₦";
       if (processedEntries.length > 0) {
         const total = processedEntries.reduce((s, e) => s + e.amount, 0);
-        return `Recorded ${processedEntries.length} entr${processedEntries.length > 1 ? "ies" : "y"} totaling ₦${total.toLocaleString()}.`;
+        return `Recorded ${processedEntries.length} entr${processedEntries.length > 1 ? "ies" : "y"} totaling ${cs}${total.toLocaleString()}.`;
       }
       return "Financial systems operational.";
     }
