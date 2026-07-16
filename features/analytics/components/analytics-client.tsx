@@ -24,6 +24,8 @@ interface AnalyticsClientProps {
   entries: Entry[];
 
   type: string;
+
+  currencySymbol?: string;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -31,6 +33,7 @@ const ITEMS_PER_PAGE = 10;
 export function AnalyticsClient({
   entries,
   type,
+  currencySymbol = "₦",
 }: AnalyticsClientProps) {
   /*
    -----------------------------------
@@ -236,13 +239,13 @@ export function AnalyticsClient({
 
             {/* TOTAL */}
 
-      <div className="border border-zinc-800 bg-zinc-950 rounded-3xl p-6">
-        <p className="text-sm text-zinc-400">
+            <div className="border border-zinc-800 bg-zinc-950 rounded-2xl lg:rounded-3xl p-5 lg:p-6">
+        <p className="text-xs lg:text-sm text-zinc-400">
           Filtered Total
         </p>
 
-        <h2 className="text-4xl font-bold mt-3">
-          ₦
+        <h2 className="text-2xl lg:text-4xl font-bold mt-2 lg:mt-3">
+          {currencySymbol}
           {total.toLocaleString()}
         </h2>
       </div>
@@ -252,28 +255,29 @@ export function AnalyticsClient({
       <AnalyticsChart
         data={chartData}
         type={type}
+        currencySymbol={currencySymbol}
       />
 
       {/* TABLE */}
 
-      <div className="border border-zinc-800 bg-zinc-950 rounded-3xl overflow-hidden">
+            <div className="border border-zinc-800 bg-zinc-950 rounded-2xl lg:rounded-3xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px]">
+          <table className="w-full min-w-[600px] lg:min-w-0">
             <thead className="bg-zinc-900">
               <tr>
-                <th className="text-left p-4">
+                <th className="text-left p-3 lg:p-4 text-xs lg:text-sm">
                   Title
                 </th>
 
-                <th className="text-left p-4">
+                <th className="text-left p-3 lg:p-4 text-xs lg:text-sm">
                   Category
                 </th>
 
-                <th className="text-left p-4">
+                <th className="text-left p-3 lg:p-4 text-xs lg:text-sm">
                   Amount
                 </th>
 
-                <th className="text-left p-4">
+                <th className="text-left p-3 lg:p-4 text-xs lg:text-sm">
                   Date
                 </th>
               </tr>
@@ -282,16 +286,16 @@ export function AnalyticsClient({
             <tbody>
               {paginatedEntries.length ===
               0 ? (
-                <tr>
+                                <tr>
                   <td
                     colSpan={4}
-                    className="p-6 text-center text-zinc-500"
+                    className="p-6 text-center text-zinc-500 text-sm"
                   >
                     No entries found.
                   </td>
                 </tr>
               ) : (
-                paginatedEntries.map(
+                                paginatedEntries.map(
                   (entry) => (
                     <tr
                       key={
@@ -299,24 +303,24 @@ export function AnalyticsClient({
                       }
                       className="border-t border-zinc-800"
                     >
-                      <td className="p-4">
+                      <td className="p-3 lg:p-4 text-sm lg:text-base">
                         {
                           entry.title
                         }
                       </td>
 
-                      <td className="p-4 capitalize">
+                      <td className="p-3 lg:p-4 text-sm lg:text-base capitalize">
                         {
                           entry.category
                         }
                       </td>
 
-                      <td className="p-4 font-semibold">
-                        ₦
+                      <td className="p-3 lg:p-4 text-sm lg:text-base font-semibold">
+                        {currencySymbol}
                         {entry.amount.toLocaleString()}
                       </td>
 
-                      <td className="p-4 text-zinc-400">
+                      <td className="p-3 lg:p-4 text-sm lg:text-base text-zinc-400">
                         {new Date(
                           entry.createdAt
                         ).toLocaleDateString()}

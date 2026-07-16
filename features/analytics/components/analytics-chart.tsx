@@ -23,6 +23,8 @@ interface AnalyticsChartProps {
     name: string;
     value: number;
   }[];
+
+  currencySymbol?: string;
 }
 
 const COLORS = [
@@ -45,6 +47,7 @@ const COLORS = [
 export function AnalyticsChart({
   type,
   data,
+  currencySymbol = "₦",
 }: AnalyticsChartProps) {
   /*
    -----------------------------------
@@ -81,6 +84,9 @@ export function AnalyticsChart({
     investments:
       "Investment Growth",
 
+    "debt-payment":
+      "Debt Repayment Progress",
+
     budgets:
       "Budget Allocation",
   };
@@ -104,8 +110,36 @@ export function AnalyticsChart({
     investments:
       "Capital allocation and growth tracking",
 
+    "debt-payment":
+      "Debt reduction and repayment tracking",
+
     budgets:
       "Planned vs actual budget comparison",
+  };
+
+  /*
+   -----------------------------------
+   CUSTOM TOOLTIP
+   -----------------------------------
+  */
+
+  const CustomTooltip = ({
+    active,
+    payload,
+    label,
+  }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 shadow-2xl">
+          <p className="text-sm text-zinc-400 mb-1">{label || payload[0].name}</p>
+          <p className="text-lg font-bold text-white">
+            {currencySymbol}
+            {Number(payload[0].value).toLocaleString()}
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
   /*
@@ -134,12 +168,12 @@ export function AnalyticsChart({
 
       {/* CHART */}
 
-      <div className="w-full h-[420px]">
+      <div className="w-full h-[300px] lg:h-[420px]">
         <ResponsiveContainer
           width="100%"
           height="100%"
         >
-          {/* EXPENSES */}
+          {/* EXPENSES - DONUT CHART */}
 
           {type ===
           "expenses" ? (
@@ -148,9 +182,10 @@ export function AnalyticsChart({
                 data={data}
                 dataKey="value"
                 nameKey="name"
-                innerRadius={70}
+                innerRadius={80}
                 outerRadius={140}
-                paddingAngle={3}
+                paddingAngle={4}
+                cornerRadius={6}
               >
                 {data.map(
                   (
@@ -167,40 +202,35 @@ export function AnalyticsChart({
                             COLORS.length
                         ]
                       }
+                      stroke="transparent"
                     />
                   )
                 )}
               </Pie>
 
               <Tooltip
-                contentStyle={{
-                  backgroundColor:
-                    "#09090b",
-                  border:
-                    "1px solid #27272a",
-                  borderRadius:
-                    "16px",
-                  color:
-                    "#ffffff",
-                }}
-                labelStyle={{
-                  color:
-                    "#ffffff",
-                }}
+                content={<CustomTooltip />}
               />
 
-              <Legend />
+              <Legend
+                wrapperStyle={{
+                  fontSize: "13px",
+                  color: "#a1a1aa",
+                }}
+                iconType="circle"
+                iconSize={10}
+              />
             </PieChart>
           ) : type ===
             "income" ? (
-            /* INCOME */
+            /* INCOME - GRADIENT AREA */
 
             <AreaChart
               data={data}
               margin={{
                 top: 10,
                 right: 20,
-                left: 0,
+                left: 10,
                 bottom: 10,
               }}
             >
@@ -216,7 +246,7 @@ export function AnalyticsChart({
                     offset="0%"
                     stopColor="#22c55e"
                     stopOpacity={
-                      0.7
+                      0.5
                     }
                   />
 
@@ -224,37 +254,36 @@ export function AnalyticsChart({
                     offset="100%"
                     stopColor="#22c55e"
                     stopOpacity={
-                      0
+                      0.05
                     }
                   />
                 </linearGradient>
               </defs>
 
               <CartesianGrid
-                strokeDasharray="3 3"
+                strokeDasharray="4 4"
                 stroke="#27272a"
+                vertical={false}
               />
 
               <XAxis
                 dataKey="name"
-                stroke="#a1a1aa"
+                stroke="#52525b"
+                tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
               />
 
               <YAxis
-                stroke="#a1a1aa"
+                stroke="#52525b"
+                tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `${currencySymbol}${(v / 1000).toFixed(0)}k`}
               />
 
               <Tooltip
-                contentStyle={{
-                  backgroundColor:
-                    "#09090b",
-                  border:
-                    "1px solid #27272a",
-                  borderRadius:
-                    "16px",
-                  color:
-                    "#ffffff",
-                }}
+                content={<CustomTooltip />}
               />
 
               <Area
@@ -262,58 +291,122 @@ export function AnalyticsChart({
                 dataKey="value"
                 stroke="#22c55e"
                 fill="url(#incomeGradient)"
-                strokeWidth={
-                  3
-                }
+                strokeWidth={3}
+                dot={{ fill: "#22c55e", strokeWidth: 0, r: 4 }}
+                activeDot={{ fill: "#22c55e", stroke: "#09090b", strokeWidth: 3, r: 6 }}
               />
             </AreaChart>
-          ) : (
-            /* INVESTMENTS + OTHER */
+          ) : type ===
+            "debt-payment" ? (
+            /* DEBT - BAR CHART WITH GREEN GRADIENT */
 
             <BarChart
               data={data}
               margin={{
                 top: 10,
                 right: 20,
-                left: 0,
+                left: 10,
                 bottom: 10,
               }}
+              barCategoryGap="30%"
             >
+              <defs>
+                <linearGradient
+                  id="debtGradient"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor="#22c55e" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#22c55e" stopOpacity={0.5} />
+                </linearGradient>
+              </defs>
+
               <CartesianGrid
-                strokeDasharray="3 3"
+                strokeDasharray="4 4"
                 stroke="#27272a"
+                vertical={false}
               />
 
               <XAxis
                 dataKey="name"
-                stroke="#a1a1aa"
+                stroke="#52525b"
+                tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
               />
 
               <YAxis
-                stroke="#a1a1aa"
+                stroke="#52525b"
+                tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `${currencySymbol}${(v / 1000).toFixed(0)}k`}
               />
 
               <Tooltip
-                contentStyle={{
-                  backgroundColor:
-                    "#09090b",
-                  border:
-                    "1px solid #27272a",
-                  borderRadius:
-                    "16px",
-                  color:
-                    "#ffffff",
-                }}
+                content={<CustomTooltip />}
               />
 
               <Bar
                 dataKey="value"
-                radius={[
-                  10,
-                  10,
-                  0,
-                  0,
-                ]}
+                radius={[8, 8, 0, 0]}
+                fill="url(#debtGradient)"
+                maxBarSize={60}
+              />
+            </BarChart>
+          ) : (
+            /* INVESTMENTS + OTHER - GRADIENT BAR CHART */
+
+            <BarChart
+              data={data}
+              margin={{
+                top: 10,
+                right: 20,
+                left: 10,
+                bottom: 10,
+              }}
+              barCategoryGap="30%"
+            >
+              <defs>
+                <linearGradient id="investGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.5} />
+                </linearGradient>
+              </defs>
+
+              <CartesianGrid
+                strokeDasharray="4 4"
+                stroke="#27272a"
+                vertical={false}
+              />
+
+              <XAxis
+                dataKey="name"
+                stroke="#52525b"
+                tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+              />
+
+              <YAxis
+                stroke="#52525b"
+                tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `${currencySymbol}${(v / 1000).toFixed(0)}k`}
+              />
+
+              <Tooltip
+                content={<CustomTooltip />}
+              />
+
+              <Bar
+                dataKey="value"
+                radius={[8, 8, 0, 0]}
+                fill="url(#investGradient)"
+                maxBarSize={60}
               >
                 {data.map(
                   (

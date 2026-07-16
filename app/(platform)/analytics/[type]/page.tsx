@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getCurrencySymbol } from "@/lib/currency";
 
 type EntryType =
   | "INCOME"
@@ -45,7 +46,7 @@ export default async function AnalyticsPage({
    -----------------------------------
   */
 
-  const session =
+    const session =
     await auth.api.getSession({
       headers: await headers(),
     });
@@ -53,6 +54,19 @@ export default async function AnalyticsPage({
   if (!session?.user) {
     redirect("/sign-in");
   }
+
+  /*
+   -----------------------------------
+   CURRENCY
+   -----------------------------------
+  */
+
+  const profile = await db.financialProfile.findUnique({
+    where: { userId: session.user.id },
+    select: { currency: true },
+  });
+
+  const currencySymbol = getCurrencySymbol(profile?.currency);
 
   /*
    -----------------------------------
@@ -261,12 +275,12 @@ export default async function AnalyticsPage({
    -----------------------------------
   */
 
-  return (
-    <main className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    return (
+    <main className="min-h-screen bg-black text-white p-6 lg:p-8 pt-16 lg:pt-8">
+      <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
         {/* HEADER */}
 
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           <Link
             href="/dashboard"
             className="
@@ -282,16 +296,16 @@ export default async function AnalyticsPage({
             ← Back to Dashboard
           </Link>
 
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 lg:gap-6">
             <div>
-              <h1 className="text-5xl font-bold capitalize">
+              <h1 className="text-3xl lg:text-5xl font-bold capitalize">
                 {type.replace(
                   "-",
                   " "
                 )}
               </h1>
 
-              <p className="text-zinc-400 mt-2">
+              <p className="text-zinc-400 text-sm lg:text-base mt-1 lg:mt-2">
                 {
                   descriptionMap[
                     type
@@ -299,7 +313,7 @@ export default async function AnalyticsPage({
                 }
               </p>
 
-              <p className="text-sm text-zinc-500 mt-3">
+              <p className="text-xs lg:text-sm text-zinc-500 mt-2 lg:mt-3">
                 {dateLabel}
               </p>
             </div>
@@ -321,16 +335,11 @@ export default async function AnalyticsPage({
         {/* COMPARISON */}
 
         <ComparisonCards
-          current={
-            currentTotal
-          }
-          previous={
-            previousTotal
-          }
-          percentage={
-            percentageChange
-          }
+          current={currentTotal}
+          previous={previousTotal}
+          percentage={percentageChange}
           trend={trend}
+          currencySymbol={currencySymbol}
         />
 
                 {/* ANALYTICS */}
@@ -338,6 +347,7 @@ export default async function AnalyticsPage({
                         <AnalyticsClient
                   entries={normalizedEntries}
                   type={type}
+                  currencySymbol={currencySymbol}
                 />
 
       </div>
