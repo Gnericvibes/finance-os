@@ -21,77 +21,44 @@ export default function SignInPage() {
     useState(false);
 
     const [error, setError] =
-    useState("");
+      useState("");
 
-  const [needsVerification, setNeedsVerification] = useState(false);
+    async function handleSignIn() {
+      try {
+        setLoading(true);
 
-  async function handleSignIn() {
-    try {
-      setLoading(true);
+        setError("");
 
-      setError("");
-      setNeedsVerification(false);
+        const result =
+          await authClient.signIn.email({
+            email,
+            password,
+          });
 
-      const result =
-        await authClient.signIn.email({
-          email,
-          password,
-        });
+        console.log(
+          "SIGNIN RESULT:",
+          result
+        );
 
-      console.log(
-        "SIGNIN RESULT:",
-        result
-      );
+        if (result.error) {
+          setError(
+            result.error.message ?? "Sign in failed"
+          );
 
-      if (result.error) {
-        const msg = result.error.message ?? "Sign in failed";
-
-        // Check if it's an email verification error
-        if (msg.toLowerCase().includes("email") && msg.toLowerCase().includes("verif")) {
-          setNeedsVerification(true);
+          return;
         }
 
-        setError(msg);
+        window.location.href = "/allocations";
+      } catch (error) {
+        console.error(error);
 
-        return;
+        setError(
+          "Sign in failed"
+        );
+      } finally {
+        setLoading(false);
       }
-
-      window.location.href = "/allocations";
-    } catch (error) {
-      console.error(error);
-
-      setError(
-        "Sign in failed"
-      );
-    } finally {
-      setLoading(false);
     }
-  }
-
-  async function resendVerification() {
-    try {
-      setLoading(true);
-      setError("");
-
-      const { error: err } = await authClient.sendVerificationEmail({
-        email,
-        callbackURL: "/allocations",
-      });
-
-      if (err) {
-        setError(err.message || "Failed to resend verification email");
-        return;
-      }
-
-      setError("Verification email resent! Check your inbox.");
-      setNeedsVerification(false);
-    } catch (err) {
-      console.error(err);
-      setError("Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
@@ -166,20 +133,10 @@ export default function SignInPage() {
         </div>
 
                 {error && (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
-
-        {needsVerification && (
-          <button
-            onClick={resendVerification}
-            disabled={loading}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 text-white font-semibold p-4 transition hover:bg-zinc-800 disabled:opacity-50"
-          >
-            {loading ? "Sending..." : "Resend Verification Email"}
-          </button>
-        )}
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {error}
+                  </div>
+                )}
 
         <button
           onClick={handleSignIn}
